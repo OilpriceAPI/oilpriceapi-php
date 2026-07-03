@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.1", "8.2", "8.3"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, json
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress
+
+      - name: Run unit tests
+        run: vendor/bin/phpunit
+
+      # Optional live smoke test. IMPORTANT: do NOT gate this step with
+      # `if: ${{ secrets.* }}` - the secrets context is unavailable in
+      # step-level `if` expressions and invalidates the whole workflow file.
+      # Guard inside the shell instead so it skips gracefully when the
+      # secret is not configured.
+      - name: Live smoke test (skips when no secret)
+        env:
+          OILPRICEAPI_TEST_KEY: ${{ secrets.OILPRICEAPI_TEST_KEY }}
+        run: |
+          if [ -z "$OILPRICEAPI_TEST_KEY" ]; then
+            echo "OILPRICEAPI_TEST_KEY not configured - skipping live smoke test."
+            exit 0
+          fi
+          OILPRICEAPI_KEY="$OILPRICEAPI_TEST_KEY" php examples/smoke.php
