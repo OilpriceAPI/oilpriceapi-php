@@ -8,7 +8,7 @@
 [![Tests](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml/badge.svg)](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**[Get a Free API Key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** · **[Documentation](https://docs.oilpriceapi.com)** · **[Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** · **[Live demo, no key needed ↓](#try-it-without-an-api-key-demo-mode)**
+**[Get a Free API Key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** · **[Documentation](https://docs.oilpriceapi.com)** · **[API Explorer](https://api.oilpriceapi.com/swagger)** · **[Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** · **[Live demo, no key needed ↓](#try-it-without-an-api-key-demo-mode)**
 
 The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com), the commodity price API behind fintech dashboards, fleet & logistics tools, maritime compliance platforms and energy analytics products — serving **2M+ API requests every month**.
 
@@ -185,6 +185,11 @@ Same data, every stack:
 | [Go SDK](https://github.com/OilpriceAPI/oilpriceapi-go)                             | `go get github.com/OilpriceAPI/oilpriceapi-go` |
 | [MCP server](https://github.com/OilpriceAPI/mcp-server) (Claude, Cursor, AI agents) | `npx -y oilpriceapi-mcp`                       |
 | [WordPress plugin](https://github.com/OilpriceAPI/oilpriceapi-wordpress-plugin)     | wordpress.org, no code                         |
+
+## Explore the API
+
+- 🧭 **Interactive explorer**: [api.oilpriceapi.com/swagger](https://api.oilpriceapi.com/swagger) — try every endpoint in the browser (works in demo mode, no key needed)
+- 📜 **OpenAPI spec**: [swagger.json](https://api.oilpriceapi.com/swagger.json) — import into Postman/Insomnia or generate clients
 
 ## Testing
 
