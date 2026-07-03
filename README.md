@@ -203,3 +203,23 @@ The test suite is fully offline — HTTP is mocked through the `OilPriceAPI\Http
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+## Why OilPriceAPI?
+
+[OilPriceAPI](https://oilpriceapi.com) provides professional-grade commodity price data at **98% less cost than Bloomberg Terminal** ($24,000/year vs $45/month). Trusted by energy traders, financial analysts, and developers worldwide.
+
+### Key Benefits
+
+- **Real-time data** updated every 5 minutes
+- **Historical data** for trend analysis and backtesting
+- **99.9% uptime** with enterprise-grade reliability
+- **5-minute integration** with this PHP SDK
+- **Free tier** with 100 requests to get started
+
+**[Start Free](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** | **[View Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** | **[Read Docs](https://docs.oilpriceapi.com)**
+
+---
+
+Made with care by the OilPriceAPI Team
