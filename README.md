@@ -1,13 +1,16 @@
-# OilPriceAPI - PHP SDK
+# OilPriceAPI — PHP SDK
 
-> **Real-time oil, gas, LNG, carbon and fuel prices for PHP** — one class, zero dependencies, works everywhere PHP does (including shared hosting and WordPress).
+> **Real-time oil, gas, LNG, carbon and fuel prices in your PHP app in under 60 seconds** — one class, zero dependencies, works everywhere PHP does (including shared hosting and WordPress).
 
+[![Packagist Version](https://img.shields.io/packagist/v/oilpriceapi/oilpriceapi)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
+[![Downloads](https://img.shields.io/packagist/dt/oilpriceapi/oilpriceapi)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/oilpriceapi/oilpriceapi/php)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
 [![Tests](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml/badge.svg)](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**[Get a Free API Key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** | **[Documentation](https://docs.oilpriceapi.com)** | **[Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)**
+**[Get a Free API Key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** · **[Documentation](https://docs.oilpriceapi.com)** · **[Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** · **[Live demo, no key needed ↓](#try-it-without-an-api-key-demo-mode)**
 
-The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com) — real-time and historical prices for Brent, WTI, Natural Gas, Diesel, EU Carbon (ETS), TTF Gas and 100+ commodities.
+The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com), the commodity price API behind fintech dashboards, fleet & logistics tools, maritime compliance platforms and energy analytics products — serving **2M+ API requests every month**.
 
 - **Zero dependencies** — only `ext-curl` and `ext-json` (bundled with virtually every PHP install). No Guzzle, no framework, no conflicts with your host's packages.
 - **PHP 8.1+**, strict types, immutable `Price` DTOs.
@@ -15,6 +18,23 @@ The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com) — real-time an
 - **Typed errors** — `AuthenticationException`, `RateLimitException`, `ApiException`.
 - **Demo mode** — try it without an API key.
 - **Escape hatch** — `$client->raw()->get(...)` reaches any endpoint, present or future.
+
+## What can you get?
+
+110+ commodities across the energy complex. The ones our customers poll the most:
+
+| Code              | What it is                 | Typical use                                 |
+| ----------------- | -------------------------- | ------------------------------------------- |
+| `BRENT_CRUDE_USD` | Brent crude (global)       | dashboards, market context, deal models     |
+| `WTI_USD`         | WTI crude (US)             | trading tools, macro models                 |
+| `NATURAL_GAS_USD` | Henry Hub natural gas      | energy analytics, procurement               |
+| `DUTCH_TTF_EUR`   | TTF gas (Europe)           | European energy, LNG analytics              |
+| `JKM_LNG_USD`     | JKM LNG (Asia)             | LNG trading & shipping                      |
+| `EU_CARBON_EUR`   | EU ETS carbon allowances   | CBAM reporting, maritime compliance, ESG    |
+| `DIESEL_USD`      | Diesel (Gulf Coast)        | fleet fuel-surcharge calculators, logistics |
+| `JET_FUEL_USD`    | Jet fuel                   | aviation ops & charter pricing              |
+| `VLSFO_USD`       | Marine bunker fuel (0.5%S) | voyage costing, bunker procurement          |
+| `GOLD_USD`        | Gold                       | macro & portfolio context                   |
 
 ## Install
 
@@ -153,6 +173,18 @@ $client = new \OilPriceAPI\Client(
 ## WordPress
 
 The SDK has no dependencies to collide with other plugins, so it drops straight into themes and plugins — `composer require` it, or copy `src/` and load it with any PSR-4 autoloader. Prefer no code at all? Use the official [OilPriceAPI WordPress plugin](https://github.com/OilpriceAPI/oilpriceapi-wordpress-plugin) for ready-made price widgets and shortcodes.
+
+## The whole OilPriceAPI toolbox
+
+Same data, every stack:
+
+| Tool                                                                                | Install                                        |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [Python SDK](https://github.com/OilpriceAPI/python-sdk)                             | `pip install oilpriceapi`                      |
+| [Node/TypeScript SDK](https://github.com/OilpriceAPI/oilpriceapi-node)              | `npm install oilpriceapi`                      |
+| [Go SDK](https://github.com/OilpriceAPI/oilpriceapi-go)                             | `go get github.com/OilpriceAPI/oilpriceapi-go` |
+| [MCP server](https://github.com/OilpriceAPI/mcp-server) (Claude, Cursor, AI agents) | `npx -y oilpriceapi-mcp`                       |
+| [WordPress plugin](https://github.com/OilpriceAPI/oilpriceapi-wordpress-plugin)     | wordpress.org, no code                         |
 
 ## Testing
 
