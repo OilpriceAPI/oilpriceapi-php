@@ -1,6 +1,6 @@
 {
   "name": "oilpriceapi/oilpriceapi",
-  "description": "Official PHP SDK for OilPriceAPI - real-time and historical oil, gas, LNG, carbon and fuel prices. Zero dependencies, works on shared hosting and WordPress.",
+  "description": "Official PHP SDK for source-timestamped OilPriceAPI energy data, with typed errors and no third-party runtime dependencies.",
   "type": "library",
   "license": "MIT",
   "keywords": [
@@ -17,12 +17,12 @@
     "sdk",
     "prices"
   ],
-  "homepage": "https://oilpriceapi.com",
+  "homepage": "https://www.oilpriceapi.com",
   "authors": [
     {
       "name": "OilPriceAPI",
       "email": "support@oilpriceapi.com",
-      "homepage": "https://oilpriceapi.com"
+      "homepage": "https://www.oilpriceapi.com"
     }
   ],
   "support": {

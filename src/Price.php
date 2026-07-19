@@ -28,6 +28,7 @@ final class Price
         public readonly ?float $change24h = null,
         public readonly ?string $name = null,
         public readonly ?string $unit = null,
+        public readonly ?string $source = null,
         public readonly ?string $type = null,
         public readonly ?string $formatted = null,
     ) {
@@ -68,6 +69,7 @@ final class Price
             change24h: is_numeric($change) ? (float) $change : null,
             name: isset($data['name']) ? (string) $data['name'] : null,
             unit: isset($data['unit']) ? (string) $data['unit'] : null,
+            source: isset($data['source']) ? (string) $data['source'] : null,
             type: isset($data['type']) ? (string) $data['type'] : null,
             formatted: isset($data['formatted']) ? (string) $data['formatted'] : null,
         );
@@ -86,6 +88,7 @@ final class Price
             'change_24h' => $this->change24h,
             'name' => $this->name,
             'unit' => $this->unit,
+            'source' => $this->source,
             'type' => $this->type,
             'formatted' => $this->formatted,
         ];

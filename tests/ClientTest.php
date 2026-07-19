@@ -64,6 +64,7 @@ final class ClientTest extends TestCase
                 'price' => 71.23,
                 'formatted' => '$71.23',
                 'currency' => 'USD',
+                'source' => 'market_reporting',
                 'type' => 'spot_price',
                 'created_at' => '2026-07-03T09:00:00+00:00',
             ],
@@ -75,6 +76,7 @@ final class ClientTest extends TestCase
         $this->assertSame('BRENT_CRUDE_USD', $price->code);
         $this->assertSame(71.23, $price->price);
         $this->assertSame('USD', $price->currency);
+        $this->assertSame('market_reporting', $price->source);
         $this->assertInstanceOf(DateTimeImmutable::class, $price->updatedAt);
         $this->assertSame('2026-07-03T09:00:00+00:00', $price->updatedAt->format(DATE_ATOM));
 
@@ -173,7 +175,7 @@ final class ClientTest extends TestCase
             $this->fail('Expected AuthenticationException');
         } catch (AuthenticationException $e) {
             $this->assertStringContainsString('No API key configured', $e->getMessage());
-            $this->assertStringContainsString('https://oilpriceapi.com/auth/signup?utm_source=php-sdk', $e->getMessage());
+            $this->assertStringContainsString('https://www.oilpriceapi.com/auth/signup?utm_source=php-sdk', $e->getMessage());
             $this->assertStringContainsString('demoPrices', $e->getMessage());
         }
 
@@ -209,7 +211,7 @@ final class ClientTest extends TestCase
         } catch (AuthenticationException $e) {
             $this->assertSame(401, $e->statusCode);
             $this->assertStringContainsString('Invalid Authorization token', $e->getMessage());
-            $this->assertStringContainsString('https://oilpriceapi.com/auth/signup?utm_source=php-sdk', $e->getMessage());
+            $this->assertStringContainsString('https://www.oilpriceapi.com/auth/signup?utm_source=php-sdk', $e->getMessage());
         }
 
         $this->assertSame(1, $this->transport->requestCount(), '401 must not be retried');
@@ -261,6 +263,32 @@ final class ClientTest extends TestCase
         $this->expectExceptionMessage('Unexpected response shape');
 
         $this->client()->latest('BRENT_CRUDE_USD');
+    }
+
+    public function testLatestRejectsSuccessWithoutUsablePrice(): void
+    {
+        $this->transport->queue(200, [
+            'status' => 'success',
+            'data' => [],
+        ]);
+
+        $this->expectException(ApiException::class);
+        $this->expectExceptionMessage('Unexpected latest price shape');
+
+        $this->client()->latest('BRENT_CRUDE_USD');
+    }
+
+    public function testLatestRejectsEmptyLegacyPriceList(): void
+    {
+        $this->transport->queue(200, [
+            'status' => 'success',
+            'data' => ['prices' => []],
+        ]);
+
+        $this->expectException(ApiException::class);
+        $this->expectExceptionMessage('Unexpected latest price shape');
+
+        $this->client()->latest();
     }
 
     // ---------------------------------------------------------------
@@ -322,7 +350,7 @@ final class ClientTest extends TestCase
             $this->assertSame(429, $e->statusCode);
             $this->assertSame(1, $e->retryAfter);
             $this->assertSame('10000', $e->limit);
-            $this->assertStringContainsString('https://oilpriceapi.com/pricing?utm_source=php-sdk-limit', $e->getMessage());
+            $this->assertStringContainsString('https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit', $e->getMessage());
         }
 
         $this->assertSame(3, $this->transport->requestCount(), 'initial attempt + 2 retries');

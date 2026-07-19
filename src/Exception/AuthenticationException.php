@@ -8,11 +8,12 @@ namespace OilPriceAPI\Exception;
  * Thrown when a request is not authenticated (HTTP 401), or when a keyed
  * endpoint is called on a client constructed without an API key.
  *
- * Get a free API key at https://oilpriceapi.com/auth/signup?utm_source=php-sdk
+ * Create or manage an API key at
+ * https://www.oilpriceapi.com/auth/signup?utm_source=php-sdk
  */
 final class AuthenticationException extends ApiException
 {
-    public const SIGNUP_URL = 'https://oilpriceapi.com/auth/signup?utm_source=php-sdk';
+    public const SIGNUP_URL = 'https://www.oilpriceapi.com/auth/signup?utm_source=php-sdk';
 
     /**
      * @param array<string, mixed> $responseBody
@@ -23,7 +24,7 @@ final class AuthenticationException extends ApiException
         array $responseBody = [],
     ) {
         parent::__construct(
-            rtrim($message, '. ') . '. Get a free API key at ' . self::SIGNUP_URL,
+            rtrim($message, '. ') . '. Create or manage an API key at ' . self::SIGNUP_URL,
             $statusCode,
             $responseBody,
         );

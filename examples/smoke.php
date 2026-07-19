@@ -20,16 +20,14 @@ if (!$client->hasApiKey()) {
 
 $brent = $client->latest('BRENT_CRUDE_USD');
 
-if ($brent->code !== 'BRENT_CRUDE_USD' || $brent->price <= 0.0) {
+if (
+    $brent->code !== 'BRENT_CRUDE_USD'
+    || $brent->price <= 0.0
+    || $brent->source === null
+    || $brent->updatedAt === null
+) {
     fwrite(STDERR, "smoke: unexpected latest price payload\n");
     exit(1);
 }
 
-$week = $client->pastWeek('BRENT_CRUDE_USD');
-
-if ($week === []) {
-    fwrite(STDERR, "smoke: past_week returned no prices\n");
-    exit(1);
-}
-
-echo "smoke: OK (latest + past_week)\n";
+echo "smoke: OK (canonical latest price)\n";

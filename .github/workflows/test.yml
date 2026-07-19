@@ -3,6 +3,7 @@ name: Tests
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -31,6 +32,40 @@ jobs:
 
       - name: Run unit tests
         run: vendor/bin/phpunit
+
+  clean-install:
+    name: Packaged Composer example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: curl, json
+          coverage: none
+
+      - name: Install exact Composer archive and run recovery fixtures
+        env:
+          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.0' }}
+        run: ./scripts/clean-install-smoke.sh
+
+  live:
+    name: Live canonical first request
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: curl, json
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress
 
       # Optional live smoke test. IMPORTANT: do NOT gate this step with
       # `if: ${{ secrets.* }}` - the secrets context is unavailable in
