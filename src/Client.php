@@ -28,7 +28,7 @@ use OilPriceAPI\Http\HttpTransport;
  */
 final class Client
 {
-    public const VERSION = '2.0.0';
+    public const VERSION = '2.1.0';
     public const DEFAULT_BASE_URL = 'https://api.oilpriceapi.com';
     public const DEFAULT_TIMEOUT = 10.0;
     public const DEFAULT_MAX_RETRIES = 3;
@@ -87,10 +87,9 @@ final class Client
      *
      *     $brent = $client->latest('BRENT_CRUDE_USD');
      *
-     * Without one, returns the latest price for every commodity on your
-     * plan as a list of {@see Price}:
-     *
-     *     foreach ($client->latest() as $price) { ... }
+     * Without one, production returns the default latest price. Legacy API
+     * responses containing a `prices` array are retained as a list for
+     * backward compatibility. Pass a code for a predictable single result.
      *
      * @return Price|list<Price>
      */
@@ -101,10 +100,17 @@ final class Client
         $data = $this->dataOrFail($body, '/v1/prices/latest');
 
         if (isset($data['prices']) && is_array($data['prices'])) {
-            return array_map(Price::fromArray(...), array_values($data['prices']));
+            if ($data['prices'] === []) {
+                throw new ApiException('Unexpected latest price shape from /v1/prices/latest.', 200, $body);
+            }
+
+            return array_map(
+                fn (mixed $price): Price => $this->latestPriceOrFail($price, $body),
+                array_values($data['prices']),
+            );
         }
 
-        return Price::fromArray($data);
+        return $this->latestPriceOrFail($data, $body);
     }
 
     /**
@@ -162,7 +168,7 @@ final class Client
     }
 
     /**
-     * Escape hatch: reach ANY endpoint and get the decoded JSON envelope.
+     * Escape hatch: call a versioned GET endpoint and get its decoded envelope.
      *
      *     $curve = $client->raw()->get('/v1/futures/ice-brent/curve');
      */
@@ -200,6 +206,26 @@ final class Client
         }
 
         return $body['data'];
+    }
+
+    /**
+     * @param mixed                $data
+     * @param array<string, mixed> $body
+     */
+    private function latestPriceOrFail(mixed $data, array $body): Price
+    {
+        if (
+            !is_array($data)
+            || !isset($data['code'])
+            || !is_string($data['code'])
+            || trim($data['code']) === ''
+            || !array_key_exists('price', $data)
+            || !is_numeric($data['price'])
+        ) {
+            throw new ApiException('Unexpected latest price shape from /v1/prices/latest.', 200, $body);
+        }
+
+        return Price::fromArray($data);
     }
 
     /**
@@ -321,7 +347,7 @@ final class Client
         if ($response->statusCode === 403) {
             throw new ApiException(
                 $this->errorMessage($body, sprintf('Access to %s is not included in your plan', $path))
-                . ' See https://oilpriceapi.com/pricing?utm_source=php-sdk-limit for plan options.',
+                . ' Review https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit for current access options.',
                 403,
                 $body,
             );

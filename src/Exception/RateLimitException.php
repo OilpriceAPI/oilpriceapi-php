@@ -8,12 +8,12 @@ namespace OilPriceAPI\Exception;
  * Thrown when the API rate limit is exceeded (HTTP 429) and automatic
  * retries have been exhausted.
  *
- * Need more requests? Upgrade at
- * https://oilpriceapi.com/pricing?utm_source=php-sdk-limit
+ * Review current limits at
+ * https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit
  */
 final class RateLimitException extends ApiException
 {
-    public const UPGRADE_URL = 'https://oilpriceapi.com/pricing?utm_source=php-sdk-limit';
+    public const UPGRADE_URL = 'https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit';
 
     /**
      * @param int|null             $retryAfter Seconds until the limit resets, if the API said
@@ -35,7 +35,7 @@ final class RateLimitException extends ApiException
         }
 
         parent::__construct(
-            rtrim($message, '. ') . '.' . $suffix . ' Need a higher limit? Upgrade at ' . self::UPGRADE_URL,
+            rtrim($message, '. ') . '.' . $suffix . ' Review current limits at ' . self::UPGRADE_URL,
             429,
             $responseBody,
         );

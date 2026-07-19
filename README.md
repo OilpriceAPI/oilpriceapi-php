@@ -1,40 +1,27 @@
-# OilPriceAPI — PHP SDK
+# OilPriceAPI PHP SDK
 
-> **Real-time oil, gas, LNG, carbon and fuel prices in your PHP app in under 60 seconds** — one class, zero dependencies, works everywhere PHP does (including shared hosting and WordPress).
+The official PHP client for source-timestamped oil, gas, refined-product,
+futures, and related energy data from [OilPriceAPI](https://www.oilpriceapi.com).
 
 [![Packagist Version](https://img.shields.io/packagist/v/oilpriceapi/oilpriceapi)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
-[![Downloads](https://img.shields.io/packagist/dt/oilpriceapi/oilpriceapi)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
 [![PHP Version](https://img.shields.io/packagist/dependency-v/oilpriceapi/oilpriceapi/php)](https://packagist.org/packages/oilpriceapi/oilpriceapi)
 [![Tests](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml/badge.svg)](https://github.com/OilpriceAPI/oilpriceapi-php/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[Get a Free API Key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** · **[Documentation](https://docs.oilpriceapi.com)** · **[API Explorer](https://api.oilpriceapi.com/swagger)** · **[Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** · **[Live demo, no key needed ↓](#try-it-without-an-api-key-demo-mode)**
+[Create an API key](https://www.oilpriceapi.com/auth/signup?utm_source=php-sdk) |
+[Documentation](https://docs.oilpriceapi.com) |
+[API explorer](https://api.oilpriceapi.com/swagger) |
+[Pricing](https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit)
 
-The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com), the commodity price API behind fintech dashboards, fleet & logistics tools, maritime compliance platforms and energy analytics products — serving **2M+ API requests every month**.
+## Requirements
 
-- **Zero dependencies** — only `ext-curl` and `ext-json` (bundled with virtually every PHP install). No Guzzle, no framework, no conflicts with your host's packages.
-- **PHP 8.1+**, strict types, immutable `Price` DTOs.
-- **Resilient** — automatic retries with exponential backoff + jitter on 429/5xx, honors `Retry-After`.
-- **Typed errors** — `AuthenticationException`, `RateLimitException`, `ApiException`.
-- **Demo mode** — try it without an API key.
-- **Escape hatch** — `$client->raw()->get(...)` reaches any endpoint, present or future.
+- PHP 8.1 or newer
+- `ext-curl` and `ext-json`
+- API base URL: `https://api.oilpriceapi.com`
+- Auth header: `Authorization: Token YOUR_API_KEY`
+- Environment variable used by the executable example: `OILPRICEAPI_KEY`
 
-## What can you get?
-
-110+ commodities across the energy complex. The ones our customers poll the most:
-
-| Code              | What it is                 | Typical use                                 |
-| ----------------- | -------------------------- | ------------------------------------------- |
-| `BRENT_CRUDE_USD` | Brent crude (global)       | dashboards, market context, deal models     |
-| `WTI_USD`         | WTI crude (US)             | trading tools, macro models                 |
-| `NATURAL_GAS_USD` | Henry Hub natural gas      | energy analytics, procurement               |
-| `DUTCH_TTF_EUR`   | TTF gas (Europe)           | European energy, LNG analytics              |
-| `JKM_LNG_USD`     | JKM LNG (Asia)             | LNG trading & shipping                      |
-| `EU_CARBON_EUR`   | EU ETS carbon allowances   | CBAM reporting, maritime compliance, ESG    |
-| `DIESEL_USD`      | Diesel (Gulf Coast)        | fleet fuel-surcharge calculators, logistics |
-| `JET_FUEL_USD`    | Jet fuel                   | aviation ops & charter pricing              |
-| `VLSFO_USD`       | Marine bunker fuel (0.5%S) | voyage costing, bunker procurement          |
-| `GOLD_USD`        | Gold                       | macro & portfolio context                   |
+The package has no third-party runtime dependency.
 
 ## Install
 
@@ -42,102 +29,92 @@ The official PHP SDK for [OilPriceAPI](https://oilpriceapi.com), the commodity p
 composer require oilpriceapi/oilpriceapi
 ```
 
-## Quick start
+## First Request
 
-```php
-use OilPriceAPI\Client;
+The canonical authenticated first request is:
 
-$client = new Client('your_api_key'); // or set OILPRICEAPI_KEY env var
-$brent  = $client->latest('BRENT_CRUDE_USD');
-echo $brent->price; // e.g. XX.XX (USD per barrel)
+```text
+GET /v1/prices/latest?by_code=BRENT_CRUDE_USD
 ```
 
-`latest()` without a code returns every commodity on your plan as a list of `Price` objects.
+Run the packaged, tested example:
 
-## No composer? Plain PHP
+```bash
+export OILPRICEAPI_KEY="your-api-key"
+php vendor/oilpriceapi/oilpriceapi/examples/quickstart.php
+```
 
-No SDK, no packages — this is the whole integration with nothing but PHP's built-in cURL:
+The same request in application code:
 
 ```php
 <?php
-// Latest Brent price from OilPriceAPI - plain PHP, no libraries needed.
-$apiKey = getenv('OILPRICEAPI_KEY') ?: 'your_api_key_here';
 
-$ch = curl_init('https://api.oilpriceapi.com/v1/prices/latest?by_code=BRENT_CRUDE_USD');
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 10,
-    CURLOPT_HTTPHEADER     => [
-        'Authorization: Token ' . $apiKey,
-        'Accept: application/json',
-    ],
-]);
-$response = curl_exec($ch);
+require __DIR__ . '/vendor/autoload.php';
 
-$json = json_decode($response, true);
-echo $json['data']['price'] ?? 'No price returned'; // e.g. XX.XX
+use OilPriceAPI\Client;
+
+$client = new Client(); // reads OILPRICEAPI_KEY
+$brent = $client->latest('BRENT_CRUDE_USD');
+
+printf(
+    "%s %.2f %s/%s as of %s (source: %s)\n",
+    $brent->code,
+    $brent->price,
+    $brent->currency,
+    $brent->unit ?? 'unknown',
+    $brent->updatedAt?->format(DATE_ATOM) ?? 'unknown',
+    $brent->source ?? 'unknown',
+);
 ```
 
-## Try it without an API key (demo mode)
+For missing configuration and actionable 401, 403, and 429 recovery, use the
+exact source in [`examples/quickstart.php`](examples/quickstart.php). CI builds
+a Composer ZIP, installs it into a clean project, and runs every recovery path
+against fixtures.
 
-The client works out of the box — no signup required — via the demo endpoint (rate limited per IP, free-tier commodities only):
+## Latest Response Compatibility
+
+Production returns a singleton `data` object for the canonical latest-price
+request, so `latest('BRENT_CRUDE_USD')` returns one `Price`. The SDK retains
+support for a legacy `data.prices[]` envelope, returned as a list, but rejects a
+successful response that contains no usable price. Pass a commodity code when
+the caller requires a predictable single `Price` result.
+
+`Price` is immutable and exposes `code`, `price`, `currency`, `updatedAt`,
+`source`, `change24h`, `name`, `unit`, `type`, and `formatted` when supplied by
+the API.
+
+## Demo Request
+
+The demo endpoint does not require an API key:
 
 ```php
-$client = new \OilPriceAPI\Client(); // no key
-
+$client = new \OilPriceAPI\Client();
 foreach ($client->demoPrices() as $price) {
-    printf("%s: %s %.2f\n", $price->code, $price->currency, $price->price);
+    printf("%s %.2f %s/%s\n",
+        $price->code,
+        $price->price,
+        $price->currency,
+        $price->unit ?? 'unknown',
+    );
 }
 ```
 
-Calling a keyed endpoint without a key throws an `AuthenticationException` that tells you exactly where to [get a free key](https://oilpriceapi.com/auth/signup?utm_source=php-sdk).
+Demo availability and limits are returned by the endpoint. Authenticated
+dataset access and limits vary by plan, source, and account entitlement.
 
-## Historical prices
+## Historical Prices
 
 ```php
-$day   = $client->pastDay('BRENT_CRUDE_USD');   // last 24 hours
-$week  = $client->pastWeek('BRENT_CRUDE_USD');
+$day = $client->pastDay('BRENT_CRUDE_USD');
+$week = $client->pastWeek('BRENT_CRUDE_USD');
 $month = $client->pastMonth('BRENT_CRUDE_USD');
-$year  = $client->pastYear('BRENT_CRUDE_USD');
-
-foreach ($week as $price) {
-    echo $price->updatedAt?->format('Y-m-d H:i'), ' -> ', $price->price, PHP_EOL;
-}
+$year = $client->pastYear('BRENT_CRUDE_USD');
 ```
 
-Each method returns a `list<OilPriceAPI\Price>` — an immutable DTO with `code`, `price` (float), `currency`, `updatedAt` (`DateTimeImmutable|null`), `change24h` (`float|null`), plus `name`, `unit`, `type`, `formatted` where the API provides them, and a `toArray()` helper.
+Each method returns a list of immutable `Price` objects.
 
-## Beyond oil — gas, LNG, carbon & fuels
-
-OilPriceAPI is not just crude. The same client covers the energy complex that maritime compliance, fleet & logistics, LNG analytics and CBAM reporting teams need:
-
-```php
-// EU ETS carbon allowances (EUR/tonne) - CBAM & maritime compliance
-$eua = $client->latest('EU_CARBON_EUR');
-echo $eua->price; // e.g. XX.XX EUR/tonne
-
-// Diesel - fleet & logistics fuel-surcharge calculations
-$diesel = $client->latest('DIESEL_USD');
-
-// Dutch TTF natural gas futures curve - LNG & gas analytics
-$ttf = $client->raw()->get('/v1/futures/ttf-gas/curve');
-
-// ICE Brent futures curve via the same escape hatch
-$curve = $client->raw()->get('/v1/futures/ice-brent/curve');
-```
-
-> Futures endpoints require a plan with futures access — see [pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit).
-
-## Any endpoint: the `raw()` escape hatch
-
-New endpoints ship in the API before they ship in the SDK. `raw()` gives you the full decoded JSON envelope for any path:
-
-```php
-$response = $client->raw()->get('/v1/futures/ice-brent/curve', ['unit' => 'usd']);
-// ['status' => 'success', 'data' => [...]]
-```
-
-## Error handling
+## Typed Errors
 
 ```php
 use OilPriceAPI\Exception\ApiException;
@@ -145,81 +122,95 @@ use OilPriceAPI\Exception\AuthenticationException;
 use OilPriceAPI\Exception\RateLimitException;
 
 try {
-    $price = $client->latest('BRENT_CRUDE_USD');
-} catch (AuthenticationException $e) {
-    // 401 or missing key - message includes the signup URL
-} catch (RateLimitException $e) {
-    // 429 after retries - $e->retryAfter (seconds), $e->limit,
-    // message includes the upgrade URL
-} catch (ApiException $e) {
-    // everything else - $e->statusCode, $e->responseBody
+    $brent = $client->latest('BRENT_CRUDE_USD');
+} catch (AuthenticationException $error) {
+    error_log('Replace OILPRICEAPI_KEY with an active key.');
+} catch (RateLimitException $error) {
+    error_log(sprintf('Retry after %d seconds.', $error->retryAfter ?? 0));
+} catch (ApiException $error) {
+    if (in_array($error->statusCode, [402, 403], true)) {
+        error_log('Review dataset access at https://www.oilpriceapi.com/pricing');
+    } else {
+        error_log(sprintf('Request failed with HTTP %d.', $error->statusCode));
+    }
 }
 ```
 
-All exceptions extend `ApiException`, so a single `catch` handles everything.
+All SDK exceptions extend `ApiException`. `RateLimitException` exposes
+`retryAfter` and the server-reported `limit` when present.
 
-## Retries & timeouts
+## Retries and Timeouts
 
-Requests that hit `429` or `5xx` are retried automatically (default: 3 retries) with exponential backoff plus jitter. If the API sends a `Retry-After` header, it is honored exactly. Everything is configurable:
+The client retries `429` and `5xx` responses with bounded exponential backoff
+and honors `Retry-After`.
 
 ```php
 $client = new \OilPriceAPI\Client(
-    apiKey: 'your_api_key',
-    timeout: 10.0,     // seconds per request (default 10)
-    maxRetries: 3,     // retries on 429/5xx (default 3)
+    apiKey: getenv('OILPRICEAPI_KEY') ?: null,
+    timeout: 10.0,
+    maxRetries: 2,
 );
 ```
 
-## WordPress
+For tests, `baseUrl`, `HttpTransport`, and the retry sleeper are injectable.
+The executable example also reads `OILPRICEAPI_BASE_URL` when a fixture or
+private compatible endpoint is required.
 
-The SDK has no dependencies to collide with other plugins, so it drops straight into themes and plugins — `composer require` it, or copy `src/` and load it with any PSR-4 autoloader. Prefer no code at all? Use the official [OilPriceAPI WordPress plugin](https://github.com/OilpriceAPI/oilpriceapi-wordpress-plugin) for ready-made price widgets and shortcodes.
+## Raw GET Escape Hatch
 
-## The whole OilPriceAPI toolbox
+Use `raw()` for a versioned GET route that does not yet have a typed method:
 
-Same data, every stack:
-
-| Tool                                                                                | Install                                        |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [Python SDK](https://github.com/OilpriceAPI/python-sdk)                             | `pip install oilpriceapi`                      |
-| [Node/TypeScript SDK](https://github.com/OilpriceAPI/oilpriceapi-node)              | `npm install oilpriceapi`                      |
-| [Go SDK](https://github.com/OilpriceAPI/oilpriceapi-go)                             | `go get github.com/OilpriceAPI/oilpriceapi-go` |
-| [MCP server](https://github.com/OilpriceAPI/mcp-server) (Claude, Cursor, AI agents) | `npx -y oilpriceapi-mcp`                       |
-| [WordPress plugin](https://github.com/OilpriceAPI/oilpriceapi-wordpress-plugin)     | wordpress.org, no code                         |
-
-## Explore the API
-
-- 🧭 **Interactive explorer**: [api.oilpriceapi.com/swagger](https://api.oilpriceapi.com/swagger) — try every endpoint in the browser (works in demo mode, no key needed)
-- 📜 **OpenAPI spec**: [swagger.json](https://api.oilpriceapi.com/swagger.json) — import into Postman/Insomnia or generate clients
-
-## Testing
-
-```bash
-composer install
-composer test
+```php
+$curve = $client->raw()->get('/v1/futures/ice-brent/curve');
 ```
 
-The test suite is fully offline — HTTP is mocked through the `OilPriceAPI\Http\HttpTransport` interface, which you can also implement to route the SDK through your own HTTP stack.
+Availability varies by dataset, plan, source, and account entitlement. Review
+[current access](https://www.oilpriceapi.com/pricing) rather than relying on a
+plan claim copied into package metadata.
 
-## License
+## Reviewed Product Facts
 
-MIT — see [LICENSE](LICENSE).
+The versioned, reviewed contract is
+[`product-facts.json`](https://api.oilpriceapi.com/product-facts.json). Mutable
+offer, catalog, freshness, entitlement, and data-rights claims should link to
+that contract instead of being duplicated in SDK documentation.
 
----
+Current reviewed catalog wording: a broad catalog spanning crude oil, natural
+gas, refined products, futures, marine fuels, carbon markets, metals, forex,
+and selected energy-intelligence datasets. See the
+[commodity catalog](https://www.oilpriceapi.com/commodities) for current
+availability.
 
-## Why OilPriceAPI?
+Source timestamps describe the values in each response. They do not imply one
+sitewide update interval: refresh cadence varies by source, market hours,
+dataset, and plan.
 
-[OilPriceAPI](https://oilpriceapi.com) provides professional-grade commodity price data at **98% less cost than Bloomberg Terminal** ($24,000/year vs $45/month). Trusted by energy traders, financial analysts, and developers worldwide.
+Standard plans provide API access, normalization, monitoring, and delivery;
+they do not grant ownership of source data or unrestricted raw-data
+redistribution rights. See the
+[data usage policy](https://www.oilpriceapi.com/legal/data-usage).
 
-### Key Benefits
+## Verify This Repository
 
-- **Real-time data** updated every 5 minutes
-- **Historical data** for trend analysis and backtesting
-- **99.9% uptime** with enterprise-grade reliability
-- **5-minute integration** with this PHP SDK
-- **Free tier** with 100 requests to get started
+```bash
+composer validate --strict
+composer install
+composer test
+./scripts/clean-install-smoke.sh
+```
 
-**[Start Free](https://oilpriceapi.com/auth/signup?utm_source=php-sdk)** | **[View Pricing](https://oilpriceapi.com/pricing?utm_source=php-sdk-limit)** | **[Read Docs](https://docs.oilpriceapi.com)**
+The guarded production smoke requires `OILPRICEAPI_TEST_KEY`:
 
----
+```bash
+OILPRICEAPI_KEY="your-test-key" php examples/smoke.php
+```
 
-Made with care by the OilPriceAPI Team
+## Support
+
+- [Documentation](https://docs.oilpriceapi.com)
+- [API explorer](https://api.oilpriceapi.com/swagger)
+- [Status](https://status.oilpriceapi.com)
+- [GitHub issues](https://github.com/OilpriceAPI/oilpriceapi-php/issues)
+- support@oilpriceapi.com
+
+MIT licensed. See [LICENSE](LICENSE).
