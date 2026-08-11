@@ -5,17 +5,52 @@ declare(strict_types=1);
 /**
  * @return list<string>
  */
-function oilpriceapiPublicTextFiles(string $root): array
+function oilpriceapiPublicTextFiles(string $root, array $excludedPaths = []): array
 {
     $root = realpath($root) ?: $root;
     if (!is_dir($root)) {
         throw new InvalidArgumentException(sprintf('Package root does not exist: %s', $root));
     }
 
-    $files = [];
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+    $excludedPaths = array_map(
+        static function (string $path): string {
+            $path = trim(str_replace(DIRECTORY_SEPARATOR, '/', $path), '/');
+            if ($path === '' || strpbrk($path, '*?[]!') !== false) {
+                throw new InvalidArgumentException(sprintf('Unsupported Composer archive exclusion: %s', $path));
+            }
+
+            return $path;
+        },
+        $excludedPaths,
     );
+    $isExcluded = static function (string $relative) use ($excludedPaths): bool {
+        foreach ($excludedPaths as $excludedPath) {
+            if ($relative === $excludedPath || str_starts_with($relative, $excludedPath . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    $files = [];
+    $directory = new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS);
+    $filter = new RecursiveCallbackFilterIterator(
+        $directory,
+        static function (SplFileInfo $file) use ($root, $isExcluded): bool {
+            if ($file->isLink()) {
+                return false;
+            }
+            $relative = str_replace(
+                DIRECTORY_SEPARATOR,
+                '/',
+                substr($file->getPathname(), strlen($root) + 1),
+            );
+
+            return !$isExcluded($relative);
+        },
+    );
+    $iterator = new RecursiveIteratorIterator($filter);
     foreach ($iterator as $file) {
         if (!$file instanceof SplFileInfo || !$file->isFile() || $file->isLink()) {
             continue;
@@ -51,6 +86,7 @@ function oilpriceapiClaimFailures(string $root, array $files): array
         'real-time claim' => '~\breal[- ]time\b~i',
         'free-tier claim' => '~\bfree\s+tier\b|\bfree\s+api\s+key\b~i',
         'fixed demo rate' => '~\b\d+\s+(requests?|reqs?\.?)\s*((per|an?)\s+|/\s*)(minutes?|mins?|hours?|hrs?|days?)\b~i',
+        'venue-specific futures path' => '~/(?:ice-(?:brent|wti|gasoil)|eua-carbon)(?:/|[\'"`])~i',
     ];
 
     $failures = [];

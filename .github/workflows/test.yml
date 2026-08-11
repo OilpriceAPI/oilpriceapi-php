@@ -60,7 +60,7 @@ jobs:
 
   live:
     name: Live canonical first request
-    if: github.event_name != 'pull_request'
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -77,17 +77,16 @@ jobs:
       - name: Install dependencies
         run: composer update --no-interaction --prefer-dist --no-progress
 
-      # Optional live smoke test. IMPORTANT: do NOT gate this step with
+      # Required default-branch live smoke test. IMPORTANT: do NOT gate this step with
       # `if: ${{ secrets.* }}` - the secrets context is unavailable in
       # step-level `if` expressions and invalidates the whole workflow file.
-      # Guard inside the shell instead so it skips gracefully when the
-      # secret is not configured.
-      - name: Live smoke test (skips when no secret)
+      # Validate inside the shell so a missing production credential fails closed.
+      - name: Live smoke test
         env:
           OILPRICEAPI_TEST_KEY: ${{ secrets.OILPRICEAPI_TEST_KEY }}
         run: |
           if [ -z "$OILPRICEAPI_TEST_KEY" ]; then
-            echo "OILPRICEAPI_TEST_KEY not configured - skipping live smoke test."
-            exit 0
+            echo "OILPRICEAPI_TEST_KEY is required for the default-branch live smoke test." >&2
+            exit 1
           fi
           OILPRICEAPI_KEY="$OILPRICEAPI_TEST_KEY" php examples/smoke.php
