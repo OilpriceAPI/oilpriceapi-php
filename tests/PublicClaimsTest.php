@@ -7,6 +7,8 @@ namespace OilPriceAPI\Tests;
 use OilPriceAPI\Client;
 use PHPUnit\Framework\TestCase;
 
+require_once dirname(__DIR__) . '/scripts/validate-public-claims.php';
+
 final class PublicClaimsTest extends TestCase
 {
     public function testPublicSurfaceDiscoveryCoversNestedPackageFiles(): void
@@ -17,6 +19,48 @@ final class PublicClaimsTest extends TestCase
         self::assertContains('src/RawClient.php', $files);
         self::assertContains('src/Http/CurlTransport.php', $files);
         self::assertContains('src/Exception/TransportException.php', $files);
+    }
+
+    public function testFutureComposerTextFilesAndQuotaAliasesCannotBypassDiscovery(): void
+    {
+        $root = sys_get_temp_dir() . '/oilpriceapi-claims-' . bin2hex(random_bytes(8));
+        mkdir($root . '/docs/nested', recursive: true);
+        mkdir($root . '/src/data', recursive: true);
+        file_put_contents($root . '/CUSTOMER_GUIDE', "See current product facts.\n");
+        file_put_contents($root . '/docs/nested/guide.md', "Includes 1,000 API requests/month.\n");
+        file_put_contents($root . '/src/data/catalog.json', '{"rate": "100 requests per hour"}');
+        file_put_contents($root . '/src/data/cache.pyc', "\x00\xff\x00");
+
+        try {
+            $files = oilpriceapiPublicTextFiles($root);
+            self::assertContains('CUSTOMER_GUIDE', $files);
+            self::assertContains('docs/nested/guide.md', $files);
+            self::assertContains('src/data/catalog.json', $files);
+            self::assertNotContains('src/data/cache.pyc', $files);
+
+            $failures = oilpriceapiClaimFailures($root, $files);
+            self::assertTrue($this->containsFailure($failures, 'docs/nested/guide.md', 'fixed allowance'));
+            self::assertTrue($this->containsFailure($failures, 'src/data/catalog.json', 'fixed demo rate'));
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
+    public function testPackagedSmokeScansTheExactInstalledComposerArchive(): void
+    {
+        $root = dirname(__DIR__);
+        $smoke = (string) file_get_contents($root . '/scripts/clean-install-smoke.sh');
+        self::assertStringContainsString('validate-public-claims.php', $smoke);
+        self::assertStringContainsString('vendor/oilpriceapi/oilpriceapi', $smoke);
+
+        $composer = json_decode(
+            (string) file_get_contents($root . '/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        foreach (['/.github', '/scripts', '/tests', '/vendor'] as $devOnlyPath) {
+            self::assertContains($devOnlyPath, $composer['archive']['exclude']);
+        }
     }
 
     public function testPublicSurfacesContainNoHighRiskProductClaims(): void
@@ -73,6 +117,39 @@ final class PublicClaimsTest extends TestCase
         sort($files);
 
         return $files;
+    }
+
+    /**
+     * @param list<string> $failures
+     */
+    private function containsFailure(array $failures, string $file, string $label): bool
+    {
+        foreach ($failures as $failure) {
+            if (str_contains($failure, $file) && str_contains($failure, $label)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($iterator as $path) {
+            if ($path->isDir()) {
+                rmdir($path->getPathname());
+            } else {
+                unlink($path->getPathname());
+            }
+        }
+        rmdir($directory);
     }
 
     public function testCanonicalDeveloperContractIsDiscoverable(): void

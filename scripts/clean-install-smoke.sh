@@ -39,6 +39,8 @@ export COMPOSER_ROOT_VERSION=1.0.0
 composer init --name=oilpriceapi/example-smoke --no-interaction --quiet
 composer config --quiet repositories.oilpriceapi "$package_json"
 composer require "oilpriceapi/oilpriceapi:$sdk_version" --no-interaction --prefer-dist --no-progress --quiet
+php "$root_dir/scripts/validate-public-claims.php" \
+	"$tmp_dir/consumer/vendor/oilpriceapi/oilpriceapi"
 quickstart="$tmp_dir/consumer/vendor/oilpriceapi/oilpriceapi/examples/quickstart.php"
 [[ -f "$quickstart" ]] || { echo "packaged quickstart is missing" >&2; exit 1; }
 
