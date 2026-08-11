@@ -63,15 +63,58 @@ function oilpriceapiClaimFailures(string $root, array $files): array
         foreach ($patterns as $label => $pattern) {
             preg_match_all($pattern, $content, $matches);
             foreach ($matches[0] as $match) {
-                if ($label === 'fixed demo rate' && strtolower($match) === '50 requests/day') {
-                    continue;
-                }
                 $failures[] = sprintf('%s: %s matched %s', $file, $label, $match);
             }
+        }
+        foreach (oilpriceapiFixedCadenceClaims($content) as $claim) {
+            $failures[] = sprintf('%s: fixed request cadence matched %s', $file, $claim);
         }
     }
 
     return $failures;
+}
+
+/**
+ * Find mutable count/action/cadence claims in any word order within a bounded
+ * paragraph or sentence. Non-request counts such as tests or records per page
+ * are intentionally outside the invariant.
+ *
+ * @return list<string>
+ */
+function oilpriceapiFixedCadenceClaims(string $content): array
+{
+    $segments = preg_split('~(?:\R\s*\R)|(?<=[.!?])\s+~u', $content) ?: [];
+    $patterns = [
+        '~\b\d[\d,]*\b~u',
+        '~\b(?:api\s+)?(?:requests?|calls?|queries|hits?|credits?)\b~iu',
+        '~(?:\b(?:daily|hourly|minutely|monthly)\b|(?:/|\bper\b|\bevery\b|\beach\b|\bin\b)\s*(?:(?:a|an|one|1|24)\s+)?(?:minutes?|mins?|hours?|hrs?|days?|months?)\b)~iu',
+    ];
+
+    $claims = [];
+    foreach ($segments as $segment) {
+        $positions = [];
+        foreach ($patterns as $pattern) {
+            preg_match_all($pattern, $segment, $matches, PREG_OFFSET_CAPTURE);
+            $positions[] = array_map(static fn (array $match): int => $match[1], $matches[0]);
+        }
+        if (in_array([], $positions, true)) {
+            continue;
+        }
+
+        foreach ($positions[0] as $countPosition) {
+            foreach ($positions[1] as $actionPosition) {
+                foreach ($positions[2] as $cadencePosition) {
+                    if (max($countPosition, $actionPosition, $cadencePosition)
+                        - min($countPosition, $actionPosition, $cadencePosition) <= 200) {
+                        $claims[] = trim((string) preg_replace('~\s+~u', ' ', $segment));
+                        continue 4;
+                    }
+                }
+            }
+        }
+    }
+
+    return $claims;
 }
 
 if (PHP_SAPI === 'cli' && realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {

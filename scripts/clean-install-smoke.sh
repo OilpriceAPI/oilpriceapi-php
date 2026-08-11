@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_dir="$(mktemp -d)"
 server_pid=""
-sdk_version="${SDK_VERSION:-2.1.0}"
+sdk_version="${SDK_VERSION:-2.1.1}"
 
 cleanup() {
 	if [[ -n "$server_pid" ]]; then

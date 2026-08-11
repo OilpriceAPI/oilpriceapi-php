@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: PHP ${{ matrix.php }}
@@ -15,10 +18,12 @@ jobs:
       matrix:
         php: ["8.1", "8.2", "8.3", "8.4", "8.5"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ matrix.php }}
           extensions: curl, json
@@ -37,10 +42,12 @@ jobs:
     name: Packaged Composer example
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: curl, json
@@ -48,17 +55,20 @@ jobs:
 
       - name: Install exact Composer archive and run recovery fixtures
         env:
-          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.0' }}
+          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.1' }}
         run: ./scripts/clean-install-smoke.sh
 
   live:
     name: Live canonical first request
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: curl, json

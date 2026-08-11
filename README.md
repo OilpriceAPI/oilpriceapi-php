@@ -161,7 +161,7 @@ private compatible endpoint is required.
 Use `raw()` for a versioned GET route that does not yet have a typed method:
 
 ```php
-$curve = $client->raw()->get('/v1/futures/ice-brent/curve');
+$curve = $client->raw()->get('/v1/futures/brent/curve');
 ```
 
 Availability varies by dataset, plan, source, and account entitlement. Review

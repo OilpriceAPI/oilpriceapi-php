@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.1 (2026-08-11)
+
+### Fixed
+
+- Use the instrument-generic Brent futures path in every packaged raw-client
+  example and guard future Composer surfaces against venue-path regressions.
+- Pin CI actions, disable persisted checkout credentials, and keep
+  authenticated production smoke credentials out of pull-request jobs.
+
 ## 2.1.0 (2026-07-19)
 
 ### Fixed

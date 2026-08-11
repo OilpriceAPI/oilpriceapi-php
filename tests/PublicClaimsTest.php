@@ -29,6 +29,18 @@ final class PublicClaimsTest extends TestCase
         file_put_contents($root . '/CUSTOMER_GUIDE', "See current product facts.\n");
         file_put_contents($root . '/docs/nested/guide.md', "Includes 1,000 API requests/month.\n");
         file_put_contents($root . '/src/data/catalog.json', '{"rate": "100 requests per hour"}');
+        $cadenceClaims = [
+            '50 requests/day',
+            '50 API calls/day',
+            'daily 50-request limit',
+            '50 requests every 24 hours',
+            '50-call limit per day',
+            '50 requests allowed daily',
+        ];
+        foreach ($cadenceClaims as $index => $claim) {
+            file_put_contents($root . sprintf('/src/data/cadence-%d.txt', $index), $claim . "\n");
+        }
+        file_put_contents($root . '/src/data/negative.txt', "50 tests daily\n50 records per page\n");
         file_put_contents($root . '/src/data/cache.pyc', "\x00\xff\x00");
 
         try {
@@ -41,6 +53,12 @@ final class PublicClaimsTest extends TestCase
             $failures = oilpriceapiClaimFailures($root, $files);
             self::assertTrue($this->containsFailure($failures, 'docs/nested/guide.md', 'fixed allowance'));
             self::assertTrue($this->containsFailure($failures, 'src/data/catalog.json', 'fixed demo rate'));
+            foreach (array_keys($cadenceClaims) as $index) {
+                self::assertTrue(
+                    $this->containsFailure($failures, sprintf('src/data/cadence-%d.txt', $index), 'fixed request cadence'),
+                );
+            }
+            self::assertFalse($this->containsFailure($failures, 'src/data/negative.txt', 'fixed request cadence'));
         } finally {
             $this->removeDirectory($root);
         }
@@ -91,6 +109,34 @@ final class PublicClaimsTest extends TestCase
                 );
             }
         }
+    }
+
+    public function testPackagedSurfacesUseInstrumentGenericFuturesPaths(): void
+    {
+        $root = dirname(__DIR__);
+        foreach ($this->publicSurfaceFiles($root) as $file) {
+            $content = (string) file_get_contents($root . '/' . $file);
+            self::assertDoesNotMatchRegularExpression(
+                '~/(?:ice-(?:brent|wti|gasoil)|eua-carbon)(?:/|[\'"`])~i',
+                $content,
+                sprintf('%s contains a venue-specific futures path', $file),
+            );
+        }
+    }
+
+    public function testWorkflowActionsArePinnedAndCheckoutCredentialsAreNotPersisted(): void
+    {
+        $workflow = (string) file_get_contents(dirname(__DIR__) . '/.github/workflows/test.yml');
+        self::assertStringContainsString(
+            'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+            $workflow,
+        );
+        self::assertStringContainsString(
+            'shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240',
+            $workflow,
+        );
+        self::assertSame(substr_count($workflow, 'actions/checkout@'), substr_count($workflow, 'persist-credentials: false'));
+        self::assertStringContainsString("live:\n    name: Live canonical first request\n    if: github.event_name != 'pull_request'", $workflow);
     }
 
     /**
@@ -162,7 +208,7 @@ final class PublicClaimsTest extends TestCase
         );
         self::assertSame('oilpriceapi/oilpriceapi', $composer['name']);
         self::assertSame('>=8.1', $composer['require']['php']);
-        self::assertSame('2.1.0', Client::VERSION);
+        self::assertSame('2.1.1', Client::VERSION);
         self::assertSame('https://api.oilpriceapi.com', Client::DEFAULT_BASE_URL);
 
         $readme = (string) file_get_contents($root . '/README.md');
