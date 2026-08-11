@@ -30,6 +30,19 @@
     "docs": "https://docs.oilpriceapi.com",
     "issues": "https://github.com/OilpriceAPI/oilpriceapi-php/issues"
   },
+  "archive": {
+    "exclude": [
+      "/.git",
+      "/.github",
+      "/.gitignore",
+      "/.phpunit.result.cache",
+      "/composer.lock",
+      "/phpunit.xml.dist",
+      "/scripts",
+      "/tests",
+      "/vendor"
+    ]
+  },
   "require": {
     "php": ">=8.1",
     "ext-curl": "*",
