@@ -68,12 +68,34 @@ final class PublicClaimsTest extends TestCase
         }
     }
 
-    public function testPackagedSmokeScansTheExactInstalledComposerArchive(): void
+    public function testPackagedSmokeScansTheExactGitHubDistribution(): void
     {
         $root = dirname(__DIR__);
         $smoke = (string) file_get_contents($root . '/scripts/clean-install-smoke.sh');
         self::assertStringContainsString('validate-public-claims.php', $smoke);
         self::assertStringContainsString('vendor/oilpriceapi/oilpriceapi', $smoke);
+        self::assertStringContainsString('git archive --format=zip --worktree-attributes', $smoke);
+        self::assertStringNotContainsString('composer archive', $smoke);
+        self::assertStringContainsString('Client::VERSION', $smoke);
+        self::assertStringContainsString('$root_dir/src/Client.php', $smoke);
+
+        $workflow = (string) file_get_contents($root . '/.github/workflows/test.yml');
+        self::assertStringNotContainsString('SDK_VERSION:', $workflow);
+
+        $attributes = (string) file_get_contents($root . '/.gitattributes');
+        foreach ([
+            '/.gitattributes',
+            '/.github',
+            '/.gitignore',
+            '/.phpunit.result.cache',
+            '/composer.lock',
+            '/phpunit.xml.dist',
+            '/scripts',
+            '/tests',
+            '/vendor',
+        ] as $devOnlyPath) {
+            self::assertStringContainsString($devOnlyPath . ' export-ignore', $attributes);
+        }
 
         $composer = json_decode(
             (string) file_get_contents($root . '/composer.json'),
@@ -290,7 +312,7 @@ YAML;
         );
         self::assertSame('oilpriceapi/oilpriceapi', $composer['name']);
         self::assertSame('>=8.1', $composer['require']['php']);
-        self::assertSame('2.1.1', Client::VERSION);
+        self::assertSame('2.1.2', Client::VERSION);
         self::assertSame('https://api.oilpriceapi.com', Client::DEFAULT_BASE_URL);
 
         $readme = (string) file_get_contents($root . '/README.md');
