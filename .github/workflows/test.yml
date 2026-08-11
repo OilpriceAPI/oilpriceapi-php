@@ -54,8 +54,6 @@ jobs:
           coverage: none
 
       - name: Install exact Composer archive and run recovery fixtures
-        env:
-          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.1' }}
         run: ./scripts/clean-install-smoke.sh
 
   live:

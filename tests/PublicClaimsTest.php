@@ -77,6 +77,10 @@ final class PublicClaimsTest extends TestCase
         self::assertStringContainsString('git archive --format=zip --worktree-attributes', $smoke);
         self::assertStringNotContainsString('composer archive', $smoke);
         self::assertStringContainsString('Client::VERSION', $smoke);
+        self::assertStringContainsString('$root_dir/src/Client.php', $smoke);
+
+        $workflow = (string) file_get_contents($root . '/.github/workflows/test.yml');
+        self::assertStringNotContainsString('SDK_VERSION:', $workflow);
 
         $attributes = (string) file_get_contents($root . '/.gitattributes');
         foreach ([

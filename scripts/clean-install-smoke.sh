@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_dir="$(mktemp -d)"
 server_pid=""
-sdk_version="${SDK_VERSION:-2.1.2}"
+sdk_version="$(php -r 'require $argv[1]; echo OilPriceAPI\Client::VERSION;' "$root_dir/src/Client.php")"
 
 cleanup() {
 	if [[ -n "$server_pid" ]]; then
