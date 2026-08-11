@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.2 (2026-08-11)
+
+### Fixed
+
+- Make the tested package match Packagist's GitHub distribution by excluding
+  development-only workflows, tests, and validation tools through Git archive
+  attributes. The clean-install gate now scans that exact archive shape and
+  rejects a stale packaged SDK version.
+
 ## 2.1.1 (2026-08-11)
 
 ### Fixed

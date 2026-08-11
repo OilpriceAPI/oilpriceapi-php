@@ -28,7 +28,7 @@ use OilPriceAPI\Http\HttpTransport;
  */
 final class Client
 {
-    public const VERSION = '2.1.1';
+    public const VERSION = '2.1.2';
     public const DEFAULT_BASE_URL = 'https://api.oilpriceapi.com';
     public const DEFAULT_TIMEOUT = 10.0;
     public const DEFAULT_MAX_RETRIES = 3;

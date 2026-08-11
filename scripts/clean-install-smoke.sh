@@ -4,7 +4,7 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_dir="$(mktemp -d)"
 server_pid=""
-sdk_version="${SDK_VERSION:-2.1.1}"
+sdk_version="${SDK_VERSION:-2.1.2}"
 
 cleanup() {
 	if [[ -n "$server_pid" ]]; then
@@ -16,15 +16,19 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$tmp_dir/artifacts" "$tmp_dir/consumer"
-COMPOSER_ROOT_VERSION="$sdk_version" composer archive \
-	--working-dir="$root_dir" \
-	--format=zip \
-	--dir="$tmp_dir/artifacts" \
-	--file=oilpriceapi \
-	--no-interaction \
-	--quiet
 archive_path="$tmp_dir/artifacts/oilpriceapi.zip"
-[[ -s "$archive_path" ]] || { echo "Composer archive was not created" >&2; exit 1; }
+(
+	cd "$root_dir"
+	git archive --format=zip --worktree-attributes --output="$archive_path" HEAD
+)
+[[ -s "$archive_path" ]] || { echo "GitHub-shaped archive was not created" >&2; exit 1; }
+
+for dev_only in .gitattributes .github .gitignore .phpunit.result.cache composer.lock phpunit.xml.dist scripts tests vendor; do
+	if unzip -Z1 "$archive_path" | grep -Eq "^${dev_only}(/|$)"; then
+		echo "GitHub-shaped archive includes development-only path: $dev_only" >&2
+		exit 1
+	fi
+done
 
 package_json="$(php -r '
 	$package = json_decode(file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR);
@@ -39,6 +43,11 @@ export COMPOSER_ROOT_VERSION=1.0.0
 composer init --name=oilpriceapi/example-smoke --no-interaction --quiet
 composer config --quiet repositories.oilpriceapi "$package_json"
 composer require "oilpriceapi/oilpriceapi:$sdk_version" --no-interaction --prefer-dist --no-progress --quiet
+installed_version="$(php -r 'require "vendor/autoload.php"; echo OilPriceAPI\Client::VERSION;')"
+[[ "$installed_version" = "$sdk_version" ]] || {
+	echo "Installed Client::VERSION $installed_version does not match $sdk_version" >&2
+	exit 1
+}
 php "$root_dir/scripts/validate-public-claims.php" \
 	"$tmp_dir/consumer/vendor/oilpriceapi/oilpriceapi"
 quickstart="$tmp_dir/consumer/vendor/oilpriceapi/oilpriceapi/examples/quickstart.php"
