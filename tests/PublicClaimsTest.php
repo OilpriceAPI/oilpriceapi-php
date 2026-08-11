@@ -9,20 +9,20 @@ use PHPUnit\Framework\TestCase;
 
 final class PublicClaimsTest extends TestCase
 {
+    public function testPublicSurfaceDiscoveryCoversNestedPackageFiles(): void
+    {
+        $root = dirname(__DIR__);
+        $files = $this->publicSurfaceFiles($root);
+
+        self::assertContains('src/RawClient.php', $files);
+        self::assertContains('src/Http/CurlTransport.php', $files);
+        self::assertContains('src/Exception/TransportException.php', $files);
+    }
+
     public function testPublicSurfacesContainNoHighRiskProductClaims(): void
     {
         $root = dirname(__DIR__);
-        $files = [
-            'README.md',
-            'CHANGELOG.md',
-            'composer.json',
-            'src/Client.php',
-            'src/Price.php',
-            'src/Exception/AuthenticationException.php',
-            'src/Exception/RateLimitException.php',
-            'examples/quickstart.php',
-            'examples/smoke.php',
-        ];
+        $files = $this->publicSurfaceFiles($root);
         $forbidden = [
             'fixed catalog total' => '~\b\d+\+\s+(commodit|endpoint|api)~i',
             'fixed update cadence' => '~(updated|refresh(ed)?)\s+every\s+\d+|every\s+\d+\s+minutes~i',
@@ -47,6 +47,32 @@ final class PublicClaimsTest extends TestCase
                 );
             }
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function publicSurfaceFiles(string $root): array
+    {
+        $files = ['README.md', 'CHANGELOG.md', 'composer.json'];
+        foreach (['src', 'examples'] as $directory) {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(
+                    $root . '/' . $directory,
+                    \FilesystemIterator::SKIP_DOTS,
+                ),
+            );
+            foreach ($iterator as $file) {
+                if (!$file instanceof \SplFileInfo || !$file->isFile() || $file->getExtension() !== 'php') {
+                    continue;
+                }
+                $relative = substr($file->getPathname(), strlen($root) + 1);
+                $files[] = str_replace(DIRECTORY_SEPARATOR, '/', $relative);
+            }
+        }
+        sort($files);
+
+        return $files;
     }
 
     public function testCanonicalDeveloperContractIsDiscoverable(): void
