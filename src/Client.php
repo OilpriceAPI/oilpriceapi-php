@@ -28,7 +28,7 @@ use OilPriceAPI\Http\HttpTransport;
  */
 final class Client
 {
-    public const VERSION = '2.1.0';
+    public const VERSION = '2.1.1';
     public const DEFAULT_BASE_URL = 'https://api.oilpriceapi.com';
     public const DEFAULT_TIMEOUT = 10.0;
     public const DEFAULT_MAX_RETRIES = 3;
@@ -170,7 +170,7 @@ final class Client
     /**
      * Escape hatch: call a versioned GET endpoint and get its decoded envelope.
      *
-     *     $curve = $client->raw()->get('/v1/futures/ice-brent/curve');
+     *     $curve = $client->raw()->get('/v1/futures/brent/curve');
      */
     public function raw(): RawClient
     {

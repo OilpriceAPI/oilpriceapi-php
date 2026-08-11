@@ -12,7 +12,7 @@ use Closure;
  * Returns the full decoded JSON envelope as an associative array, so ANY
  * OilPriceAPI endpoint is reachable without waiting for an SDK release:
  *
- *     $curve = $client->raw()->get('/v1/futures/ice-brent/curve');
+ *     $curve = $client->raw()->get('/v1/futures/brent/curve');
  *     foreach ($curve['data']['contracts'] ?? [] as $contract) {
  *         // ...
  *     }
@@ -31,7 +31,7 @@ final class RawClient
     /**
      * Perform a GET request against any API path.
      *
-     * @param string                $path   API path, e.g. '/v1/futures/ice-brent/curve'
+     * @param string                $path   API path, e.g. '/v1/futures/brent/curve'
      * @param array<string, scalar> $params Query string parameters
      *
      * @return array<string, mixed> Full decoded JSON response (envelope included)

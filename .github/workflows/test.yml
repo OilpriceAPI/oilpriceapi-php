@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: PHP ${{ matrix.php }}
@@ -15,10 +18,12 @@ jobs:
       matrix:
         php: ["8.1", "8.2", "8.3", "8.4", "8.5"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP ${{ matrix.php }}
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ matrix.php }}
           extensions: curl, json
@@ -37,10 +42,12 @@ jobs:
     name: Packaged Composer example
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: curl, json
@@ -48,17 +55,20 @@ jobs:
 
       - name: Install exact Composer archive and run recovery fixtures
         env:
-          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.0' }}
+          SDK_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '2.1.1' }}
         run: ./scripts/clean-install-smoke.sh
 
   live:
     name: Live canonical first request
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: "8.3"
           extensions: curl, json
@@ -67,17 +77,16 @@ jobs:
       - name: Install dependencies
         run: composer update --no-interaction --prefer-dist --no-progress
 
-      # Optional live smoke test. IMPORTANT: do NOT gate this step with
+      # Required default-branch live smoke test. IMPORTANT: do NOT gate this step with
       # `if: ${{ secrets.* }}` - the secrets context is unavailable in
       # step-level `if` expressions and invalidates the whole workflow file.
-      # Guard inside the shell instead so it skips gracefully when the
-      # secret is not configured.
-      - name: Live smoke test (skips when no secret)
+      # Validate inside the shell so a missing production credential fails closed.
+      - name: Live smoke test
         env:
           OILPRICEAPI_TEST_KEY: ${{ secrets.OILPRICEAPI_TEST_KEY }}
         run: |
           if [ -z "$OILPRICEAPI_TEST_KEY" ]; then
-            echo "OILPRICEAPI_TEST_KEY not configured - skipping live smoke test."
-            exit 0
+            echo "OILPRICEAPI_TEST_KEY is required for the default-branch live smoke test." >&2
+            exit 1
           fi
           OILPRICEAPI_KEY="$OILPRICEAPI_TEST_KEY" php examples/smoke.php

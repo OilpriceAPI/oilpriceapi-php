@@ -365,7 +365,7 @@ final class ClientTest extends TestCase
         $envelope = [
             'status' => 'success',
             'data' => [
-                'contract' => 'ice-brent',
+                'contract' => 'brent',
                 'curve' => [
                     ['month' => '2026-08', 'price' => 71.50],
                     ['month' => '2026-09', 'price' => 71.10],
@@ -374,11 +374,11 @@ final class ClientTest extends TestCase
         ];
         $this->transport->queue(200, $envelope);
 
-        $result = $this->client()->raw()->get('/v1/futures/ice-brent/curve', ['unit' => 'usd']);
+        $result = $this->client()->raw()->get('/v1/futures/brent/curve', ['unit' => 'usd']);
 
         $this->assertSame($envelope, $result, 'raw() must return the full decoded envelope');
         $this->assertSame(
-            'https://api.oilpriceapi.com/v1/futures/ice-brent/curve?unit=usd',
+            'https://api.oilpriceapi.com/v1/futures/brent/curve?unit=usd',
             $this->transport->requests[0]['url'],
         );
         $this->assertSame('Token test_key', $this->transport->requests[0]['headers']['Authorization']);
