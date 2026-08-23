@@ -84,6 +84,31 @@ the caller requires a predictable single `Price` result.
 `source`, `change24h`, `name`, `unit`, `type`, and `formatted` when supplied by
 the API.
 
+## Several Prices In One Request
+
+`by_code` accepts up to **20 comma-separated commodity codes**, and the whole call
+counts as **one request** — not one per code. Batching is the cheapest way to make
+an allowance go further: twenty codes in one call stretches it twenty times.
+
+```php
+$prices = $client->latest('BRENT_CRUDE_USD,WTI_USD,NATURAL_GAS_USD');
+
+foreach ($prices as $price) {
+    printf("%s %.2f %s\n", $price->code, $price->price, $price->currency);
+}
+```
+
+One code returns a single `Price`; two or more return a `list<Price>` — the
+return type is `Price|array`, so use `is_array()` if the count is dynamic.
+
+Asking for more than 20 codes returns `400 Too many commodity codes requested
+(max: 20, requested: N)`. An unrecognised code also returns `400`, with a "did you
+mean" suggestion — so validate your code list once rather than on every poll.
+
+For current plan allowances and the polling interval that fits them, see
+[Rate Limiting](https://docs.oilpriceapi.com/guides/rate-limiting#how-often-to-poll).
+
+
 ## Demo Request
 
 The demo endpoint does not require an API key:
