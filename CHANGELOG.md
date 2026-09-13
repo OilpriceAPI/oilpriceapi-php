@@ -4,6 +4,16 @@
 
 ### Security
 
+- Do not follow HTTP redirects. `CurlTransport` set
+  `CURLOPT_FOLLOWLOCATION => true`, so a 302 from the configured API host
+  delivered a body from a different origin that the SDK decoded and returned
+  as an authoritative price. The #17 origin guard validates the URL the SDK
+  sends and cannot see where the server points next. Redirects now raise
+  `TransportException` naming the `Location`, the resolved effective URL is
+  checked against the requested origin as a tripwire, and `composer.json`
+  declares the `lib-curl >=7.58.0` floor the SDK relied on implicitly for
+  stripping `Authorization` across an origin change. The production API does
+  not redirect, so no supported call pattern changes.
 - Reject raw API paths that would move the request off the configured base
   origin. The base URL and the caller-supplied path were concatenated, so a
   path such as `@evil.tld/v1/prices` turned the API host into URL userinfo and
@@ -24,6 +34,17 @@
 
 ### Fixed
 
+- Reject fabricated observation timestamps. `Price::fromArray()` parsed the
+  `created_at`/`updated_at` field without ever consulting
+  `DateTimeImmutable::getLastErrors()`, so PHP silently repaired impossible
+  values into plausible dates - `2026-13-45T99:99:99Z` became
+  `2027-02-18T04:40:39Z` - and the tolerant constructor fallback accepted
+  relative expressions such as `now`, `next friday` and `+1 week`. Timestamps
+  are now matched against an explicit list of absolute formats and accepted
+  only on a parse that reports zero warnings and zero errors; anything else
+  raises `ApiException`. Naive timestamps are read as UTC rather than as the
+  host's local timezone, and leap seconds are rejected rather than rolled
+  silently into the next minute.
 - Read the descriptive fields instead of casting them. `currency`, `unit`,
   `name`, `source`, `type` and `formatted` were unchecked `(string)` casts, so
   `currency: ["EUR"]` became the literal `'Array'` plus a PHP

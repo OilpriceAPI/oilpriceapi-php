@@ -6,6 +6,7 @@ namespace OilPriceAPI;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use OilPriceAPI\Exception\ApiException;
 
 /**
@@ -21,6 +22,30 @@ use OilPriceAPI\Exception\ApiException;
  */
 final class Price
 {
+    /**
+     * The absolute timestamp spellings the API is allowed to speak.
+     *
+     * Every entry is anchored with '!' so unspecified fields reset to the
+     * epoch rather than to "now", and each is tried with `getLastErrors()`
+     * checked afterwards. Relative expressions ('now', 'next friday',
+     * '+1 week') are deliberately absent: the `DateTimeImmutable` constructor
+     * accepts them without any error at all, which is how a corrupt field
+     * became a plausible observation time.
+     *
+     * @var list<string>
+     */
+    private const TIMESTAMP_FORMATS = [
+        '!Y-m-d\\TH:i:sP',      // RFC 3339 / ATOM, including the 'Z' spelling
+        '!Y-m-d\\TH:i:s.uP',    // RFC 3339 with fractional seconds
+        '!Y-m-d\\TH:i:s',       // naive ISO 8601, read as UTC
+        '!Y-m-d\\TH:i:s.u',
+        '!Y-m-d H:i:sP',        // space separator (Postgres / Rails #to_s)
+        '!Y-m-d H:i:s.uP',
+        '!Y-m-d H:i:s',
+        '!Y-m-d H:i:s.u',
+        '!Y-m-d',               // date only
+    ];
+
     public function __construct(
         public readonly string $code,
         public readonly float $price,
@@ -59,6 +84,11 @@ final class Price
      * barrel where the payload said tonne - is the same harm class as a wrong
      * number, and harder to spot because the number beside it is right.
      *
+     * The timestamp is held to the same standard. Only an unambiguous absolute
+     * value is accepted ({@see self::TIMESTAMP_FORMATS}); anything PHP would
+     * have to repair or interpret relative to "now" raises rather than
+     * producing a plausible-looking date.
+     *
      * @param array<string, mixed> $data
      *
      * @throws ApiException when a required field is missing, unparseable or of
@@ -95,21 +125,7 @@ final class Price
         $timestamp = $data['created_at'] ?? $data['updated_at'] ?? null;
         $updatedAt = null;
         if (is_string($timestamp) && $timestamp !== '') {
-            $parsed = DateTimeImmutable::createFromFormat(DateTimeInterface::ATOM, $timestamp);
-            if ($parsed === false) {
-                try {
-                    $parsed = new DateTimeImmutable($timestamp);
-                } catch (\Exception) {
-                    $parsed = null;
-                }
-            }
-            if (!$parsed instanceof DateTimeImmutable) {
-                throw new ApiException(sprintf(
-                    'Price row for %s carries an unparseable timestamp.',
-                    $data['code'],
-                ));
-            }
-            $updatedAt = $parsed;
+            $updatedAt = self::parseTimestamp($timestamp, $data['code']);
         }
 
         $change = $data['change_24h'] ?? $data['change_percent_24h'] ?? null;
@@ -129,6 +145,57 @@ final class Price
             type: self::optionalString($data, 'type', $data['code']),
             formatted: self::optionalString($data, 'formatted', $data['code']),
         );
+    }
+
+    /**
+     * Parse an observation timestamp, or refuse it.
+     *
+     * PHP will happily hand back a usable object for input it had to repair:
+     * `createFromFormat(ATOM, '2026-13-45T99:99:99Z')` returns
+     * 2027-02-18T04:40:39Z and reports the repair only through the static
+     * `getLastErrors()`. The constructor is looser still and accepts 'now',
+     * 'next friday' and '+1 week' with no error at all. Both paths turn a
+     * corrupt field into a plausible date, which misplaces a correct price in
+     * time - a failure nobody spots the way they spot a $0.00 Brent quote.
+     *
+     * So: an explicit list of absolute formats, and a parse only counts when
+     * `getLastErrors()` reports zero warnings AND zero errors.
+     *
+     * Leap seconds ('23:59:60') are rejected on purpose. PHP has no
+     * representation for one and rolls it into the next minute, so accepting
+     * it would be a silent one-second shift - the same fabrication in
+     * miniature.
+     *
+     * @throws ApiException when the value is not an unambiguous absolute timestamp
+     */
+    private static function parseTimestamp(string $value, string $code): DateTimeImmutable
+    {
+        $utc = new DateTimeZone('UTC');
+
+        foreach (self::TIMESTAMP_FORMATS as $format) {
+            $parsed = DateTimeImmutable::createFromFormat($format, $value, $utc);
+            if (!$parsed instanceof DateTimeImmutable) {
+                continue;
+            }
+
+            // getLastErrors() returns false when the parse was clean, and an
+            // array of counts when PHP had to warn (rolled-over date, trailing
+            // data) or error. Anything but a clean parse is a fabrication.
+            $errors = DateTimeImmutable::getLastErrors();
+            if ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
+                continue;
+            }
+
+            return $parsed;
+        }
+
+        throw new ApiException(sprintf(
+            'Price row for %s carries an unparseable timestamp (%s); refusing to '
+            . 'report a fabricated observation time. Expected an absolute '
+            . 'timestamp such as 2026-07-19T12:00:00Z.',
+            $code,
+            var_export($value, true),
+        ));
     }
 
     /**
