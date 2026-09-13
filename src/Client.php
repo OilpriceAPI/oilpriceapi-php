@@ -123,12 +123,12 @@ final class Client
             }
 
             return array_map(
-                fn (mixed $price): Price => $this->latestPriceOrFail($price, $body),
+                fn (mixed $price): Price => $this->priceOrFail($price, $body, '/v1/prices/latest'),
                 array_values($data['prices']),
             );
         }
 
-        return $this->latestPriceOrFail($data, $body);
+        return $this->priceOrFail($data, $body, '/v1/prices/latest');
     }
 
     /**
@@ -180,9 +180,8 @@ final class Client
     {
         $body = $this->request('/v1/demo/prices', []);
         $data = $this->dataOrFail($body, '/v1/demo/prices');
-        $prices = is_array($data['prices'] ?? null) ? $data['prices'] : [];
 
-        return array_map(Price::fromArray(...), array_values($prices));
+        return $this->priceListOrFail($data, $body, '/v1/demo/prices');
     }
 
     /**
@@ -201,11 +200,11 @@ final class Client
     private function historical(string $period, ?string $byCode): array
     {
         $params = $byCode !== null ? ['by_code' => $byCode] : [];
-        $body = $this->request('/v1/prices/' . $period, $params);
-        $data = $this->dataOrFail($body, '/v1/prices/' . $period);
-        $prices = is_array($data['prices'] ?? null) ? $data['prices'] : [];
+        $path = '/v1/prices/' . $period;
+        $body = $this->request($path, $params);
+        $data = $this->dataOrFail($body, $path);
 
-        return array_map(Price::fromArray(...), array_values($prices));
+        return $this->priceListOrFail($data, $body, $path);
     }
 
     /**
@@ -227,23 +226,58 @@ final class Client
     }
 
     /**
-     * @param mixed                $data
+     * Decode a list-returning endpoint.
+     *
+     * A missing or non-array `prices` field is a malformed envelope, not an
+     * empty result: returning [] for it reports "no data" for a response the
+     * SDK simply failed to understand. An actual empty list stays empty.
+     *
+     * @param array<string, mixed> $data
      * @param array<string, mixed> $body
+     *
+     * @return list<Price>
      */
-    private function latestPriceOrFail(mixed $data, array $body): Price
+    private function priceListOrFail(array $data, array $body, string $path): array
     {
-        if (
-            !is_array($data)
-            || !isset($data['code'])
-            || !is_string($data['code'])
-            || trim($data['code']) === ''
-            || !array_key_exists('price', $data)
-            || !is_numeric($data['price'])
-        ) {
-            throw new ApiException('Unexpected latest price shape from /v1/prices/latest.', 200, $body);
+        if (!array_key_exists('prices', $data) || !is_array($data['prices'])) {
+            throw new ApiException(
+                sprintf('Unexpected response shape from %s: no price list in the envelope.', $path),
+                200,
+                $body,
+            );
         }
 
-        return Price::fromArray($data);
+        return array_map(
+            fn (mixed $row): Price => $this->priceOrFail($row, $body, $path),
+            array_values($data['prices']),
+        );
+    }
+
+    /**
+     * The single validated price-row boundary shared by latest, history and demo.
+     *
+     * @param array<string, mixed> $body
+     */
+    private function priceOrFail(mixed $row, array $body, string $path): Price
+    {
+        if (is_array($row)) {
+            try {
+                return Price::fromArray($row);
+            } catch (ApiException $e) {
+                throw new ApiException($this->malformedRowMessage($path, $e->getMessage()), 200, $body);
+            }
+        }
+
+        throw new ApiException($this->malformedRowMessage($path, 'Price row is not an object.'), 200, $body);
+    }
+
+    private function malformedRowMessage(string $path, string $detail): string
+    {
+        if ($path === '/v1/prices/latest') {
+            return 'Unexpected latest price shape from /v1/prices/latest. ' . $detail;
+        }
+
+        return sprintf('Unexpected price row in the response from %s. %s', $path, $detail);
     }
 
     /**

@@ -15,6 +15,12 @@
 
 ### Fixed
 
+- Reject malformed price rows instead of reporting them as `$0.00`. A row
+  without a usable code or a numeric price, an unparseable timestamp, and a
+  missing or non-array `prices` field now raise `ApiException` across
+  `latest()`, the historical period methods and `demoPrices()`. Legitimate
+  zero and negative prices are preserved, and a genuinely empty `prices` list
+  still returns an empty array.
 - Stop retrying an exhausted durable quota. A rate-limit response carrying
   `MONTHLY_QUOTA_EXCEEDED`, `TRIAL_LIMIT_EXCEEDED`, `TRIAL_EXPIRED`,
   `EMAIL_CONFIRMATION_REQUIRED` or `DEMO_RATE_LIMIT_EXCEEDED` now fails fast

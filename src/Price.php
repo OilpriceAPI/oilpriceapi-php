@@ -6,6 +6,7 @@ namespace OilPriceAPI;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use OilPriceAPI\Exception\ApiException;
 
 /**
  * Immutable price data transfer object.
@@ -41,10 +42,32 @@ final class Price
      * `created_at`/`updated_at` for the timestamp and `change_24h`/
      * `change_percent_24h` for the 24h change.
      *
+     * A row that does not carry a usable code and a numeric price is rejected
+     * rather than defaulted: a manufactured $0.00 is indistinguishable from a
+     * real quote once it leaves the SDK. Legitimate zero and negative prices
+     * are preserved.
+     *
      * @param array<string, mixed> $data
+     *
+     * @throws ApiException when a required field is missing or unparseable
      */
     public static function fromArray(array $data): self
     {
+        if (
+            !isset($data['code'])
+            || !is_string($data['code'])
+            || trim($data['code']) === ''
+        ) {
+            throw new ApiException('Price row is missing a usable commodity code.');
+        }
+
+        if (!array_key_exists('price', $data) || !is_numeric($data['price'])) {
+            throw new ApiException(sprintf(
+                'Price row for %s is missing a numeric price; refusing to report it as 0.',
+                $data['code'],
+            ));
+        }
+
         $timestamp = $data['created_at'] ?? $data['updated_at'] ?? null;
         $updatedAt = null;
         if (is_string($timestamp) && $timestamp !== '') {
@@ -56,14 +79,20 @@ final class Price
                     $parsed = null;
                 }
             }
-            $updatedAt = $parsed ?: null;
+            if (!$parsed instanceof DateTimeImmutable) {
+                throw new ApiException(sprintf(
+                    'Price row for %s carries an unparseable timestamp.',
+                    $data['code'],
+                ));
+            }
+            $updatedAt = $parsed;
         }
 
         $change = $data['change_24h'] ?? $data['change_percent_24h'] ?? null;
 
         return new self(
-            code: (string) ($data['code'] ?? ''),
-            price: (float) ($data['price'] ?? 0.0),
+            code: $data['code'],
+            price: (float) $data['price'],
             currency: (string) ($data['currency'] ?? 'USD'),
             updatedAt: $updatedAt,
             change24h: is_numeric($change) ? (float) $change : null,
