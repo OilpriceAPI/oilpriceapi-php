@@ -84,6 +84,14 @@ the caller requires a predictable single `Price` result.
 `source`, `change24h`, `name`, `unit`, `type`, and `formatted` when supplied by
 the API.
 
+`code`, `price` and `currency` are required; a row missing any of them raises
+`ApiException` rather than being defaulted. `currency` in particular is never
+assumed to be USD — the catalogue is not USD-only, and a euro-denominated
+carbon price labelled in dollars is plausible enough to pass unnoticed. The
+descriptive fields are read as strings or refused, never cast, so a payload
+that sends `unit` as something other than a string fails loudly instead of
+arriving as a mislabelled quantity.
+
 ## Several Prices In One Request
 
 `by_code` accepts up to **20 comma-separated commodity codes**, and the whole call

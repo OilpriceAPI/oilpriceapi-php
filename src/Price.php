@@ -42,14 +42,27 @@ final class Price
      * `created_at`/`updated_at` for the timestamp and `change_24h`/
      * `change_percent_24h` for the 24h change.
      *
-     * A row that does not carry a usable code and a numeric price is rejected
-     * rather than defaulted: a manufactured $0.00 is indistinguishable from a
-     * real quote once it leaves the SDK. Legitimate zero and negative prices
-     * are preserved.
+     * A row that does not carry a usable code, a numeric price and a currency
+     * is rejected rather than defaulted: a manufactured $0.00 is
+     * indistinguishable from a real quote once it leaves the SDK. Legitimate
+     * zero and negative prices are preserved.
+     *
+     * `currency` is required. It used to default to 'USD', which labelled a
+     * euro-denominated carbon price as dollars - and unlike a $0.00 Brent
+     * quote, `78.40 USD` on an EUA contract is plausible, roughly 8% wrong,
+     * and flows into a model undetected. The catalogue is not USD-only; the
+     * repo's own fixtures carry EU_CARBON_EUR.
+     *
+     * The descriptive fields are read, not coerced. `(string)` on an array
+     * produced the literal 'Array' plus a PHP warning, on `true` produced '1',
+     * and on the ISO numeric currency 978 produced '978'. A mislabelled unit -
+     * barrel where the payload said tonne - is the same harm class as a wrong
+     * number, and harder to spot because the number beside it is right.
      *
      * @param array<string, mixed> $data
      *
-     * @throws ApiException when a required field is missing or unparseable
+     * @throws ApiException when a required field is missing, unparseable or of
+     *                      the wrong type
      */
     public static function fromArray(array $data): self
     {
@@ -65,6 +78,17 @@ final class Price
             throw new ApiException(sprintf(
                 'Price row for %s is missing a numeric price; refusing to report it as 0.',
                 $data['code'],
+            ));
+        }
+
+        $currency = $data['currency'] ?? null;
+        if (!is_string($currency) || trim($currency) === '') {
+            throw new ApiException(sprintf(
+                'Price row for %s is missing a usable currency (got %s); refusing to label '
+                . 'it USD by default, because a mislabelled currency is a plausible wrong '
+                . 'number rather than an obvious one.',
+                $data['code'],
+                get_debug_type($currency),
             ));
         }
 
@@ -93,15 +117,48 @@ final class Price
         return new self(
             code: $data['code'],
             price: (float) $data['price'],
-            currency: (string) ($data['currency'] ?? 'USD'),
+            // The only value this DTO adjusts: insignificant surrounding
+            // whitespace, so `$price->currency === 'EUR'` behaves. Nothing
+            // about the label changes.
+            currency: trim($currency),
             updatedAt: $updatedAt,
             change24h: is_numeric($change) ? (float) $change : null,
-            name: isset($data['name']) ? (string) $data['name'] : null,
-            unit: isset($data['unit']) ? (string) $data['unit'] : null,
-            source: isset($data['source']) ? (string) $data['source'] : null,
-            type: isset($data['type']) ? (string) $data['type'] : null,
-            formatted: isset($data['formatted']) ? (string) $data['formatted'] : null,
+            name: self::optionalString($data, 'name', $data['code']),
+            unit: self::optionalString($data, 'unit', $data['code']),
+            source: self::optionalString($data, 'source', $data['code']),
+            type: self::optionalString($data, 'type', $data['code']),
+            formatted: self::optionalString($data, 'formatted', $data['code']),
         );
+    }
+
+    /**
+     * Read an optional descriptive field, or refuse it.
+     *
+     * Absent and explicitly null both mean "not provided". Anything that is
+     * present but not a string is a malformed row, not something to cast: the
+     * cast is what turned `['EUR']` into 'Array' and `978` into '978'.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @throws ApiException when the field is present with a non-string value
+     */
+    private static function optionalString(array $data, string $key, string $code): ?string
+    {
+        if (!array_key_exists($key, $data) || $data[$key] === null) {
+            return null;
+        }
+
+        if (!is_string($data[$key])) {
+            throw new ApiException(sprintf(
+                'Price row for %s carries a non-string %s (%s); refusing to coerce it into a '
+                . 'label, because a wrong label is as costly as a wrong number.',
+                $code,
+                $key,
+                get_debug_type($data[$key]),
+            ));
+        }
+
+        return $data[$key];
     }
 
     /**

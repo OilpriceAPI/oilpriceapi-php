@@ -151,7 +151,12 @@ final class MalformedPriceRowTest extends TestCase
     {
         $this->transport->queue(200, [
             'status' => 'success',
-            'data' => ['prices' => [['code' => 'WTI_USD', 'price' => $price, 'created_at' => '2026-04-20T00:00:00Z']]],
+            'data' => ['prices' => [[
+                'code' => 'WTI_USD',
+                'price' => $price,
+                'currency' => 'USD',
+                'created_at' => '2026-04-20T00:00:00Z',
+            ]]],
         ]);
 
         $prices = $this->client()->pastDay('WTI_USD');

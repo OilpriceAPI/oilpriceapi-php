@@ -117,8 +117,8 @@ final class ClientTest extends TestCase
             'status' => 'success',
             'data' => [
                 'prices' => [
-                    ['price' => 70.00, 'created_at' => '2026-07-01T00:00:00Z', 'code' => 'BRENT_CRUDE_USD'],
-                    ['price' => 71.00, 'created_at' => '2026-07-02T00:00:00Z', 'code' => 'BRENT_CRUDE_USD'],
+                    ['price' => 70.00, 'created_at' => '2026-07-01T00:00:00Z', 'code' => 'BRENT_CRUDE_USD', 'currency' => 'USD'],
+                    ['price' => 71.00, 'created_at' => '2026-07-02T00:00:00Z', 'code' => 'BRENT_CRUDE_USD', 'currency' => 'USD'],
                 ],
             ],
         ];

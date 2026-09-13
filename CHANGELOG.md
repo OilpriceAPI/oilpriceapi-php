@@ -13,8 +13,25 @@
   origin is compared against the configured base URL before the credential is
   attached. Explicit custom `$baseUrl` values are unaffected.
 
+### Changed
+
+- **Breaking:** `currency` is required on a price row. `Price::fromArray()`
+  defaulted it to `USD`, which labelled a euro-denominated carbon price as
+  dollars. A `$0.00` Brent quote is obviously broken and a human catches it;
+  `78.40 USD` on an EUA contract is plausible, roughly 8% wrong, and flows into
+  a model undetected. The catalogue is not USD-only - the repo's own fixtures
+  carry `EU_CARBON_EUR`.
+
 ### Fixed
 
+- Read the descriptive fields instead of casting them. `currency`, `unit`,
+  `name`, `source`, `type` and `formatted` were unchecked `(string)` casts, so
+  `currency: ["EUR"]` became the literal `'Array'` plus a PHP
+  "Array to string conversion" warning, `true` became `'1'`, and the ISO
+  numeric currency `978` became `'978'`. A present-but-non-string value now
+  raises `ApiException` naming the field and its actual type; absent and null
+  still mean "not provided". Surrounding whitespace on `currency` is
+  normalized so `$price->currency === 'EUR'` behaves.
 - Reject malformed price rows instead of reporting them as `$0.00`. A row
   without a usable code or a numeric price, an unparseable timestamp, and a
   missing or non-array `prices` field now raise `ApiException` across
