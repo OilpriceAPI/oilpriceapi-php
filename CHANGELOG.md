@@ -14,11 +14,22 @@
   | --- | --- | --- |
   | no `code`, or a blank or non-string `code` | `code` became `''` | `ApiException` |
   | no `price`, or a non-numeric `price` | `price` became `0.0` | `ApiException` |
-  | an unparseable `created_at`/`updated_at` | a date was invented | `ApiException` |
+  | no `currency` | `currency` became `'USD'` | `ApiException` |
+  | a non-string `currency` | `['EUR']` became `'Array'`, `978` became `'978'` | `ApiException` |
+  | a non-string `unit`, `name`, `source`, `type` or `formatted` | cast, so `true` became `'1'` | `ApiException` |
+  | a `created_at`/`updated_at` PHP had to repair | `2026-13-45T99:99:99Z` became `2027-02-18T04:40:39Z` | `ApiException` |
+  | a relative `created_at`/`updated_at` | `now`, `next friday`, `+1 week` all became dates | `ApiException` |
 
   A legitimate zero or negative price is still preserved; a genuinely empty
   `prices` list still returns an empty array; a row with no timestamp field at
-  all is still valid and leaves `updatedAt` null.
+  all is still valid and leaves `updatedAt` null; and an absent or explicitly
+  null `unit`, `name`, `source`, `type` or `formatted` still means "not
+  provided" rather than an error.
+
+  Two deliberate calls inside the timestamp rule, called out because they
+  reject input a reader might expect to pass: a leap second (`23:59:60`) is
+  rejected rather than rolled silently into the next minute, and a naive
+  timestamp is read as UTC rather than as the host's local timezone.
 
   **What callers should do:** the methods on `Client` (`latest()`, the
   historical period methods, `demoPrices()`) already surfaced malformed data
@@ -41,8 +52,19 @@
   There is no opt-out, by design: the manufactured values were
   indistinguishable from real quotes once they left the SDK.
 
-- The version jumps 2.1.2 to 3.0.0 with no 2.2.0 in between. The change above
-  shipped to `main` labelled as a patch; this corrects the label rather than
+- **Redirects are no longer followed.** A `$baseUrl` whose host answers with a
+  3xx now raises `TransportException` instead of being followed silently.
+  `https://api.oilpriceapi.com` does not redirect, so this affects only a
+  custom base URL; point it at the final URL. Details under Security below.
+
+- **New platform requirement: `lib-curl >= 7.58.0`.** `composer.json` accepted
+  any libcurl. 7.58.0 is where libcurl began stripping `Authorization` across
+  an origin change, which the SDK depended on without saying so. Composer will
+  now refuse to install on an older host rather than leaving the credential
+  exposed.
+
+- The version jumps 2.1.2 to 3.0.0 with no 2.2.0 in between. The changes above
+  shipped to `main` labelled as patches; this corrects the label rather than
   re-releasing the code.
 
 ### Security

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OilPriceAPI\Tests;
 
 use OilPriceAPI\Client;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -98,6 +99,71 @@ final class VersioningTest extends TestCase
     }
 
     /**
+     * The breaking-change section must enumerate EVERY break in the release,
+     * not just the first one found. A reader checking whether it is safe to
+     * upgrade reads this section and nothing else; a break documented only
+     * under "Fixed" or "Security" is a break they will meet in production.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function breaksThatMustBeListed(): array
+    {
+        return [
+            'fromArray is partial' => ['Price::fromArray'],
+            'currency is required' => ['no `currency`'],
+            'non-string currency' => ['a non-string `currency`'],
+            'non-string label fields' => ['non-string `unit`'],
+            'repaired timestamps' => ['PHP had to repair'],
+            'relative timestamps' => ['a relative `created_at`'],
+            'redirects not followed' => ['Redirects are no longer followed'],
+            'libcurl floor' => ['lib-curl >= 7.58.0'],
+        ];
+    }
+
+    #[DataProvider('breaksThatMustBeListed')]
+    public function testEveryBreakIsListedUnderBreakingChanges(string $needle): void
+    {
+        $this->assertStringContainsString(
+            $needle,
+            self::breakingChangesSection(),
+            sprintf('"%s" is not documented under "### Breaking changes".', $needle),
+        );
+    }
+
+    /**
+     * The rejections a reader would not predict have to be named, or they
+     * arrive as a surprise on a row that looks fine.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function surprisingRejections(): array
+    {
+        return [
+            'leap second' => ['leap second'],
+            'naive timestamp timezone' => ['read as UTC'],
+        ];
+    }
+
+    #[DataProvider('surprisingRejections')]
+    public function testSurprisingRejectionsAreCalledOut(string $needle): void
+    {
+        $this->assertStringContainsString($needle, self::breakingChangesSection());
+    }
+
+    /**
+     * What stays working matters as much as what breaks: without it a reader
+     * cannot tell whether a legitimate zero price still survives.
+     */
+    public function testBreakingChangesSectionSaysWhatStillWorks(): void
+    {
+        $section = self::breakingChangesSection();
+
+        $this->assertMatchesRegularExpression('/zero or negative price is still preserved/', $section);
+        $this->assertMatchesRegularExpression('/empty\s+`prices`\s+list still returns an empty array/', $section);
+        $this->assertStringContainsString('no timestamp field', $section);
+    }
+
+    /**
      * The version a customer sees in our access logs must be the version we
      * think we shipped.
      */
@@ -116,6 +182,21 @@ final class VersioningTest extends TestCase
             'oilpriceapi-php/' . Client::VERSION,
             $transport->requests[0]['headers']['User-Agent'],
         );
+    }
+
+    /**
+     * The text between "### Breaking changes" and the next "###" heading.
+     */
+    private static function breakingChangesSection(): string
+    {
+        $entry = self::firstChangelogEntry();
+        $start = strpos($entry, '### Breaking changes');
+        self::assertIsInt($start, 'The topmost entry has no "### Breaking changes" section.');
+
+        $rest = substr($entry, $start + strlen('### Breaking changes'));
+        $next = strpos($rest, '###');
+
+        return $next === false ? $rest : substr($rest, 0, $next);
     }
 
     private static function changelog(): string
