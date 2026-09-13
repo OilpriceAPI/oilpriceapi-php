@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Security
+
+- Reject raw API paths that would move the request off the configured base
+  origin. The base URL and the caller-supplied path were concatenated, so a
+  path such as `@evil.tld/v1/prices` turned the API host into URL userinfo and
+  cURL delivered `Authorization: Token <key>` to `evil.tld`. Paths are now
+  normalized to a single leading slash, scheme-relative references, absolute
+  URLs, backslashes, userinfo and whitespace are rejected, and the resolved
+  origin is compared against the configured base URL before the credential is
+  attached. Explicit custom `$baseUrl` values are unaffected.
+
 ### Fixed
 
 - Reject malformed price rows instead of reporting them as `$0.00`. A row
