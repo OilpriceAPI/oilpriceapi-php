@@ -37,6 +37,12 @@ final class Client
     private const MAX_BACKOFF_SECONDS = 30.0;
 
     /**
+     * The one endpoint family that answers without an API key. Matched on a
+     * segment boundary - see {@see self::isDemoPath()} - never as a raw prefix.
+     */
+    private const DEMO_PATH_ROOT = '/v1/demo';
+
+    /**
      * Error codes for limits that do not refill inside any backoff this client
      * could sleep. Retrying one of these cannot succeed - it only spends more
      * requests against a limit that is already exhausted. Compared
@@ -290,7 +296,7 @@ final class Client
     private function request(string $rawPath, array $params): array
     {
         $path = $this->normalizeApiPath($rawPath);
-        $isDemo = str_starts_with($path, '/v1/demo');
+        $isDemo = self::isDemoPath($path);
 
         if (!$isDemo && $this->apiKey === null) {
             throw new AuthenticationException(
@@ -352,6 +358,39 @@ final class Client
      * attaches 'Authorization: Token <key>'). Reject those before the
      * credential is ever assembled.
      */
+    /**
+     * Is this path served by keyless demo mode?
+     *
+     * Matched on a segment boundary: exactly self::DEMO_PATH_ROOT, or a path
+     * below it. A raw prefix match also swallowed paths that merely start with
+     * the same characters but are answered by an authenticated endpoint -
+     * /v1/demographics, /v1/demo-prices - which then went out with no
+     * Authorization header, came back 401, and were reported to the caller as
+     * "Invalid API key." about a key that was perfectly valid (#23).
+     *
+     * Dot segments are never demo. The server resolves them, so the path we
+     * inspect is not the endpoint that answers: /v1/demo/../prices/latest is
+     * really /v1/prices/latest and needs the key. Percent-encoded forms count,
+     * because some servers decode before resolving. Erring toward "not demo"
+     * is the safe direction - the worst case is sending a valid key to our own
+     * origin (already guarded by assertSameOrigin), rather than withholding it.
+     */
+    private static function isDemoPath(string $path): bool
+    {
+        // Only the part before the query/fragment names the endpoint.
+        $bare = substr($path, 0, strcspn($path, '?#'));
+
+        foreach (explode('/', $bare) as $segment) {
+            $decoded = rawurldecode($segment);
+            if ($decoded === '.' || $decoded === '..') {
+                return false;
+            }
+        }
+
+        return $bare === self::DEMO_PATH_ROOT
+            || str_starts_with($bare, self::DEMO_PATH_ROOT . '/');
+    }
+
     private function normalizeApiPath(string $path): string
     {
         if ($path === '') {
