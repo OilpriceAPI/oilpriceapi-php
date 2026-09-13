@@ -253,8 +253,9 @@ final class Client
      *
      * @return array<string, mixed> Decoded JSON body
      */
-    private function request(string $path, array $params): array
+    private function request(string $rawPath, array $params): array
     {
+        $path = $this->normalizeApiPath($rawPath);
         $isDemo = str_starts_with($path, '/v1/demo');
 
         if (!$isDemo && $this->apiKey === null) {
@@ -267,8 +268,9 @@ final class Client
         }
 
         $url = $this->baseUrl . $path;
+        $this->assertSameOrigin($url, $rawPath);
         if ($params !== []) {
-            $url .= '?' . http_build_query($params);
+            $url .= (str_contains($path, '?') ? '&' : '?') . http_build_query($params);
         }
 
         $headers = [
@@ -304,6 +306,96 @@ final class Client
         assert($response instanceof HttpResponse);
 
         return $this->handleResponse($response, $path);
+    }
+
+    /**
+     * Normalize a caller-supplied API path to a single leading slash and reject
+     * anything that could graft a new authority onto the configured base URL.
+     *
+     * The base URL and the path are concatenated, so a path that does not start
+     * with '/' can turn the base host into URL userinfo
+     * ('@evil.tld/v1/prices' resolves to host 'evil.tld' while the SDK still
+     * attaches 'Authorization: Token <key>'). Reject those before the
+     * credential is ever assembled.
+     */
+    private function normalizeApiPath(string $path): string
+    {
+        if ($path === '') {
+            throw new ApiException('API path must not be empty; use a path such as /v1/prices/latest.');
+        }
+
+        if (preg_match('/[\x00-\x20\x7f]/', $path) === 1) {
+            throw $this->offOriginPath($path, 'whitespace and control characters are not allowed');
+        }
+
+        if (str_contains($path, '\\')) {
+            throw $this->offOriginPath($path, 'backslashes are normalized to slashes by URL parsers');
+        }
+
+        // Everything before the query/fragment decides the authority.
+        $bare = substr($path, 0, strcspn($path, '?#'));
+
+        if (str_starts_with($bare, '//')) {
+            throw $this->offOriginPath($path, 'scheme-relative references change the host');
+        }
+
+        if (preg_match('#^[A-Za-z][A-Za-z0-9+.\-]*:#', $bare) === 1) {
+            throw $this->offOriginPath($path, 'absolute URLs are not accepted; pass a path such as /v1/prices/latest');
+        }
+
+        if (!str_starts_with($path, '/')) {
+            $firstSegment = substr($bare, 0, strcspn($bare, '/'));
+            if (str_contains($firstSegment, '@')) {
+                throw $this->offOriginPath($path, 'userinfo would replace the API host');
+            }
+
+            $path = '/' . $path;
+        }
+
+        return $path;
+    }
+
+    /**
+     * Defense in depth: the resolved URL must keep the configured origin.
+     */
+    private function assertSameOrigin(string $url, string $rawPath): void
+    {
+        $base = parse_url($this->baseUrl);
+        $resolved = parse_url($url);
+
+        if (!is_array($base) || !is_array($resolved)) {
+            throw $this->offOriginPath($rawPath, 'the resolved URL could not be parsed');
+        }
+
+        if (self::originOf($base) !== self::originOf($resolved)) {
+            throw $this->offOriginPath($rawPath, 'the resolved origin differs from the configured base URL');
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $parts
+     */
+    private static function originOf(array $parts): string
+    {
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        $defaultPorts = ['http' => 80, 'https' => 443];
+        $port = $parts['port'] ?? ($defaultPorts[$scheme] ?? null);
+        // Any userinfo at all is a mismatch: the configured base URL carries none.
+        $userInfo = isset($parts['user']) || isset($parts['pass']) ? 'userinfo@' : '';
+
+        return $scheme . '://' . $userInfo . $host . ':' . ($port === null ? '' : (string) $port);
+    }
+
+    private function offOriginPath(string $path, string $reason): ApiException
+    {
+        return new ApiException(sprintf(
+            'Refusing to send the API key to a different origin: path %s is rejected because %s. '
+            . 'Pass an API path (for example /v1/prices/latest); use the $baseUrl constructor '
+            . 'argument for an intentional proxy or test server.',
+            var_export($path, true),
+            $reason,
+        ));
     }
 
     private function isRetryable(HttpResponse $response): bool
