@@ -312,7 +312,7 @@ YAML;
         );
         self::assertSame('oilpriceapi/oilpriceapi', $composer['name']);
         self::assertSame('>=8.1', $composer['require']['php']);
-        self::assertSame('2.1.2', Client::VERSION);
+        self::assertSame('3.0.0', Client::VERSION);
         self::assertSame('https://api.oilpriceapi.com', Client::DEFAULT_BASE_URL);
 
         $readme = (string) file_get_contents($root . '/README.md');

@@ -201,6 +201,33 @@ Availability varies by dataset, plan, source, and account entitlement. Review
 [current access](https://www.oilpriceapi.com/pricing) rather than relying on a
 plan claim copied into package metadata.
 
+## Upgrading to 3.0
+
+`Price::fromArray()` is public and documented, and in 3.0 it throws
+`ApiException` for payloads 2.x accepted silently: a missing, blank or
+non-string `code`, a missing or non-numeric `price`, and an unparseable
+timestamp. 2.x manufactured a value in each case — `$0.00`, an empty code, an
+invented date — and a manufactured value is indistinguishable from a real
+quote once it leaves the SDK.
+
+If you call `Client` methods (`latest()`, the historical period methods,
+`demoPrices()`) and already catch `ApiException`, nothing changes: those
+methods surfaced malformed data as `ApiException` before. If you call
+`Price::fromArray()` on your own payloads, wrap it:
+
+```php
+try {
+    $price = \OilPriceAPI\Price::fromArray($row);
+} catch (\OilPriceAPI\Exception\ApiException $e) {
+    // Malformed row. Previously you got a Price carrying manufactured values.
+    // Handle or skip it; retrying will not change the payload.
+}
+```
+
+A legitimate zero or negative price is still preserved, an empty `prices` list
+still returns an empty array, and a row with no timestamp is still valid. See
+the CHANGELOG for the full table.
+
 ## Reviewed Product Facts
 
 The versioned, reviewed contract is
