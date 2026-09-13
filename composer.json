@@ -37,6 +37,7 @@
       "/.gitignore",
       "/.phpunit.result.cache",
       "/composer.lock",
+      "/phpstan.neon",
       "/phpunit.xml.dist",
       "/scripts",
       "/tests",
@@ -50,6 +51,7 @@
     "lib-curl": ">=7.58.0"
   },
   "require-dev": {
+    "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0 || ^13.0"
   },
   "autoload": {
@@ -63,7 +65,12 @@
     }
   },
   "scripts": {
-    "test": "phpunit"
+    "test": "phpunit",
+    "phpstan": "phpstan analyse",
+    "check": [
+      "@phpstan",
+      "@test"
+    ]
   },
   "config": {
     "sort-packages": true

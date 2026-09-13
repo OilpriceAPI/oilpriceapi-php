@@ -38,6 +38,28 @@ jobs:
       - name: Run unit tests
         run: vendor/bin/phpunit
 
+  static-analysis:
+    name: PHPStan (level 9, no baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: "8.3"
+          extensions: curl, json
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --no-progress
+
+      # No baseline, no --memory-limit escape hatch: a new error fails the build.
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+
   clean-install:
     name: Packaged Composer example
     runs-on: ubuntu-latest
