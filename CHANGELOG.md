@@ -1,6 +1,49 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 (unreleased)
+
+### Breaking changes
+
+- `Price::fromArray()` is no longer total. It is public, documented, and
+  callable directly, and it now throws `ApiException` for payloads the 2.x
+  line accepted silently.
+
+  **What throws now that did not before:**
+
+  | Row | 2.x behaviour | 3.0 behaviour |
+  | --- | --- | --- |
+  | no `code`, or a blank or non-string `code` | `code` became `''` | `ApiException` |
+  | no `price`, or a non-numeric `price` | `price` became `0.0` | `ApiException` |
+  | an unparseable `created_at`/`updated_at` | a date was invented | `ApiException` |
+
+  A legitimate zero or negative price is still preserved; a genuinely empty
+  `prices` list still returns an empty array; a row with no timestamp field at
+  all is still valid and leaves `updatedAt` null.
+
+  **What callers should do:** the methods on `Client` (`latest()`, the
+  historical period methods, `demoPrices()`) already surfaced malformed data
+  as `ApiException`, so a caller that catches `ApiException` around API calls
+  needs no change. A caller that invokes `Price::fromArray()` on its own
+  payloads must now wrap it:
+
+  ```php
+  try {
+      $price = \OilPriceAPI\Price::fromArray($row);
+  } catch (\OilPriceAPI\Exception\ApiException $e) {
+      // The row was malformed. Previously you received a Price carrying
+      // manufactured values - $0.00, an empty code, or an invented date.
+      // Handle or skip the row; do not retry, the payload will not change.
+  }
+  ```
+
+  A caller that relied on the manufactured values - reading `$price->price`
+  as `0.0` to mean "no data", say - must switch to catching the exception.
+  There is no opt-out, by design: the manufactured values were
+  indistinguishable from real quotes once they left the SDK.
+
+- The version jumps 2.1.2 to 3.0.0 with no 2.2.0 in between. The change above
+  shipped to `main` labelled as a patch; this corrects the label rather than
+  re-releasing the code.
 
 ### Security
 
