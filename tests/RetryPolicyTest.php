@@ -95,7 +95,7 @@ final class RetryPolicyTest extends TestCase
     public function testRecoverableBurstLimitIsStillRetried(): void
     {
         $this->transport->queue(429, ['error_code' => 'RATE_LIMIT_EXCEEDED'], ['Retry-After' => '2']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $price = $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -107,7 +107,7 @@ final class RetryPolicyTest extends TestCase
     public function testHourlyCircuitBreakerWithinBudgetIsRetried(): void
     {
         $this->transport->queue(429, ['error_code' => 'HOURLY_CIRCUIT_BREAKER_EXCEEDED'], ['Retry-After' => '5']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -136,7 +136,7 @@ final class RetryPolicyTest extends TestCase
     public function testNegativeRetryAfterNeverProducesANegativeOrZeroHotRetry(): void
     {
         $this->transport->queue(429, ['error_code' => 'RATE_LIMIT_EXCEEDED'], ['Retry-After' => '-30']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -164,7 +164,7 @@ final class RetryPolicyTest extends TestCase
             ['error_code' => 'RATE_LIMIT_EXCEEDED'],
             ['Retry-After' => gmdate('D, d M Y H:i:s \G\M\T', time() - 600)],
         );
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -195,7 +195,7 @@ final class RetryPolicyTest extends TestCase
     public function testUnparseableRetryAfterFallsBackToBackoff(): void
     {
         $this->transport->queue(429, ['error_code' => 'RATE_LIMIT_EXCEEDED'], ['Retry-After' => 'soon']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -224,7 +224,7 @@ final class RetryPolicyTest extends TestCase
     {
         $this->transport->queue(500, ['error' => 'boom']);
         $this->transport->queue(503, ['error' => 'boom']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 
@@ -237,7 +237,7 @@ final class RetryPolicyTest extends TestCase
         $this->transport->queue(429, ['error_code' => 'RATE_LIMIT_EXCEEDED'], ['Retry-After' => '-1']);
         $this->transport->queue(500, []);
         $this->transport->queue(429, ['error_code' => 'RATE_LIMIT_EXCEEDED'], ['Retry-After' => '0']);
-        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $this->transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
 
         $this->client()->latest('BRENT_CRUDE_USD');
 

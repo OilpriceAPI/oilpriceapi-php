@@ -52,7 +52,7 @@ final class RawPathOriginTest extends TestCase
     public function testOffOriginRawPathIsRejectedBeforeAnyRequestIsMade(string $path): void
     {
         $transport = new MockTransport();
-        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0]]);
+        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0, 'currency' => 'USD']]);
         $client = new Client(self::KEY, self::BASE, 10.0, 0, $transport);
 
         try {
@@ -92,7 +92,7 @@ final class RawPathOriginTest extends TestCase
     public function testSameOriginPathsKeepTheConfiguredHost(string $path): void
     {
         $transport = new MockTransport();
-        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0]]);
+        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0, 'currency' => 'USD']]);
         $client = new Client(self::KEY, self::BASE, 10.0, 0, $transport);
 
         $client->raw()->get($path);
@@ -112,7 +112,7 @@ final class RawPathOriginTest extends TestCase
     public function testExplicitCustomBaseUrlStillWorks(): void
     {
         $transport = new MockTransport();
-        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0]]);
+        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'X', 'price' => 1.0, 'currency' => 'USD']]);
         $client = new Client(self::KEY, 'http://127.0.0.1:8080/proxy', 10.0, 0, $transport);
 
         $client->raw()->get('/v1/prices/latest');
@@ -126,7 +126,7 @@ final class RawPathOriginTest extends TestCase
     public function testModelledEndpointsStillResolve(): void
     {
         $transport = new MockTransport();
-        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8]]);
+        $transport->queue(200, ['status' => 'success', 'data' => ['code' => 'BRENT_CRUDE_USD', 'price' => 71.8, 'currency' => 'USD']]);
         $client = new Client(self::KEY, self::BASE, 10.0, 0, $transport);
 
         $client->latest('BRENT_CRUDE_USD');

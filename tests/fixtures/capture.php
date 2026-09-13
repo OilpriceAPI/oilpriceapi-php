@@ -16,4 +16,4 @@ if (is_string($log) && $log !== '') {
 }
 
 header('Content-Type: application/json');
-echo json_encode(['status' => 'success', 'data' => ['code' => 'CAPTURED', 'price' => 1.0]], JSON_THROW_ON_ERROR);
+echo json_encode(['status' => 'success', 'data' => ['code' => 'CAPTURED', 'price' => 1.0, 'currency' => 'USD']], JSON_THROW_ON_ERROR);
