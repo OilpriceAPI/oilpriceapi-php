@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Reject malformed price rows instead of reporting them as `$0.00`. A row
+  without a usable code or a numeric price, an unparseable timestamp, and a
+  missing or non-array `prices` field now raise `ApiException` across
+  `latest()`, the historical period methods and `demoPrices()`. Legitimate
+  zero and negative prices are preserved, and a genuinely empty `prices` list
+  still returns an empty array.
+
 ## 2.1.2 (2026-08-11)
 
 ### Fixed
