@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Stop retrying exhausted durable quotas. A 429 carrying
+  `MONTHLY_QUOTA_EXCEEDED`, `TRIAL_LIMIT_EXCEEDED`, `TRIAL_EXPIRED`,
+  `EMAIL_CONFIRMATION_REQUIRED` or `DEMO_RATE_LIMIT_EXCEEDED` now costs one
+  request instead of four; burst and hourly-circuit-breaker limits are still
+  retried.
+- Never shorten `Retry-After`. A delay longer than the 30-second retry budget
+  raises `RateLimitException` with the server's own delay instead of coming
+  back early, and a negative delta-seconds value falls back to normal backoff
+  rather than a zero-second hot retry.
+
 ## 2.1.2 (2026-08-11)
 
 ### Fixed

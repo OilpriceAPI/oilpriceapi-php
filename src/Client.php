@@ -36,6 +36,24 @@ final class Client
     /** Maximum backoff sleep between retries, in seconds. */
     private const MAX_BACKOFF_SECONDS = 30.0;
 
+    /**
+     * Error codes for limits that do not refill inside any backoff this client
+     * could sleep. Retrying one of these cannot succeed - it only spends more
+     * requests against a limit that is already exhausted. Compared
+     * case-insensitively against `error_code`, `error.code` and `code`.
+     *
+     * @var list<string>
+     */
+    private const DURABLE_QUOTA_CODES = [
+        'MONTHLY_QUOTA_EXCEEDED',
+        'DAILY_QUOTA_EXCEEDED',
+        'QUOTA_EXCEEDED',
+        'TRIAL_LIMIT_EXCEEDED',
+        'TRIAL_EXPIRED',
+        'EMAIL_CONFIRMATION_REQUIRED',
+        'DEMO_RATE_LIMIT_EXCEEDED',
+    ];
+
     private readonly ?string $apiKey;
     private readonly string $baseUrl;
     private readonly HttpTransport $transport;
@@ -267,11 +285,20 @@ final class Client
         for ($attempt = 0; $attempt < $attempts; $attempt++) {
             $response = $this->transport->request('GET', $url, $headers, $this->timeout);
 
-            if (!$this->isRetryable($response->statusCode) || $attempt === $attempts - 1) {
+            if (!$this->isRetryable($response) || $attempt === $attempts - 1) {
                 break;
             }
 
-            ($this->sleeper)($this->backoffDelay($attempt, $response));
+            $delay = $this->retryDelay($attempt, $response);
+            if ($delay === null) {
+                // The server asked us to wait longer than this client's budget.
+                // Coming back early would be a second refusal, so stop and let
+                // the caller schedule the retry with the guidance on the
+                // exception.
+                break;
+            }
+
+            ($this->sleeper)($delay);
         }
 
         assert($response instanceof HttpResponse);
@@ -279,19 +306,56 @@ final class Client
         return $this->handleResponse($response, $path);
     }
 
-    private function isRetryable(int $statusCode): bool
+    private function isRetryable(HttpResponse $response): bool
     {
-        return $statusCode === 429 || $statusCode >= 500;
+        if ($response->statusCode >= 500) {
+            return true;
+        }
+
+        return $response->statusCode === 429 && !$this->isDurableQuotaExhausted($response);
     }
 
     /**
-     * Exponential backoff with full jitter, honoring Retry-After when present.
+     * Whether a 429 reports a limit that will not refill inside a retry window.
      */
-    private function backoffDelay(int $attempt, HttpResponse $response): float
+    private function isDurableQuotaExhausted(HttpResponse $response): bool
+    {
+        $decoded = json_decode($response->body, true);
+        if (!is_array($decoded)) {
+            return false;
+        }
+
+        $candidates = [
+            $decoded['error_code'] ?? null,
+            $decoded['code'] ?? null,
+            is_array($decoded['error'] ?? null) ? ($decoded['error']['code'] ?? null) : null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && in_array(strtoupper(trim($candidate)), self::DURABLE_QUOTA_CODES, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Delay before the next attempt, or null when the server's minimum delay
+     * exceeds this client's budget and the request must not be retried.
+     *
+     * Exponential backoff with full jitter when the server gave no usable
+     * instruction; the server's own Retry-After wins when it did.
+     */
+    private function retryDelay(int $attempt, HttpResponse $response): ?float
     {
         $retryAfter = $this->parseRetryAfter($response);
         if ($retryAfter !== null) {
-            return min((float) $retryAfter, self::MAX_BACKOFF_SECONDS);
+            if ($retryAfter > self::MAX_BACKOFF_SECONDS) {
+                return null;
+            }
+
+            return (float) $retryAfter;
         }
 
         $base = min(0.5 * (2 ** $attempt), self::MAX_BACKOFF_SECONDS);
@@ -300,6 +364,13 @@ final class Client
         return min($base + $jitter, self::MAX_BACKOFF_SECONDS);
     }
 
+    /**
+     * Retry-After in seconds, or null when absent or malformed.
+     *
+     * A negative delta-seconds value is malformed, not an instruction to retry
+     * immediately, so it is discarded in favour of normal backoff. An HTTP-date
+     * already in the past does mean "now", and becomes 0.
+     */
     private function parseRetryAfter(HttpResponse $response): ?int
     {
         $value = $response->header('Retry-After');
@@ -308,7 +379,9 @@ final class Client
         }
 
         if (is_numeric($value)) {
-            return max(0, (int) $value);
+            $seconds = (int) $value;
+
+            return $seconds < 0 ? null : $seconds;
         }
 
         $timestamp = strtotime($value);
