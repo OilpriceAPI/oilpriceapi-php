@@ -21,6 +21,15 @@
   `latest()`, the historical period methods and `demoPrices()`. Legitimate
   zero and negative prices are preserved, and a genuinely empty `prices` list
   still returns an empty array.
+- Stop retrying an exhausted durable quota. A rate-limit response carrying
+  `MONTHLY_QUOTA_EXCEEDED`, `TRIAL_LIMIT_EXCEEDED`, `TRIAL_EXPIRED`,
+  `EMAIL_CONFIRMATION_REQUIRED` or `DEMO_RATE_LIMIT_EXCEEDED` now fails fast
+  instead of being retried against a limit that is already spent; burst and
+  circuit-breaker limits are still retried.
+- Never shorten `Retry-After`. A delay longer than the client's retry budget
+  raises `RateLimitException` carrying the server's own delay instead of coming
+  back early, and a negative delta-seconds value falls back to normal backoff
+  rather than a zero-second hot retry.
 
 ## 2.1.2 (2026-08-11)
 
