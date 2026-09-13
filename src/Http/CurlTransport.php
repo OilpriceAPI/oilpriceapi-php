@@ -23,6 +23,13 @@ final class CurlTransport implements HttpTransport
 {
     public function request(string $method, string $url, array $headers, float $timeout): HttpResponse
     {
+        if ($url === '' || $method === '') {
+            throw new TransportException(
+                'A transport request needs a non-empty HTTP method and URL; '
+                . 'got method ' . var_export($method, true) . ' and URL ' . var_export($url, true) . '.',
+            );
+        }
+
         $headerLines = [];
         foreach ($headers as $name => $value) {
             $headerLines[] = $name . ': ' . $value;
@@ -116,12 +123,26 @@ final class CurlTransport implements HttpTransport
      */
     private static function originOf(array $parts): string
     {
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $scheme = self::lowerPart($parts, 'scheme');
+        $host = self::lowerPart($parts, 'host');
         $defaultPorts = ['http' => 80, 'https' => 443];
         $port = $parts['port'] ?? ($defaultPorts[$scheme] ?? null);
         $userInfo = isset($parts['user']) || isset($parts['pass']) ? 'userinfo@' : '';
 
-        return $scheme . '://' . $userInfo . $host . ':' . ($port === null ? '' : (string) $port);
+        return $scheme . '://' . $userInfo . $host . ':' . (is_int($port) ? (string) $port : '');
+    }
+
+    /**
+     * A parse_url() part, lowercased. A non-string part is an origin we cannot
+     * name, which must not compare equal to one we can - hence '' rather than
+     * a cast that would turn null, 0 or false into something plausible.
+     *
+     * @param array<string, mixed> $parts
+     */
+    private static function lowerPart(array $parts, string $key): string
+    {
+        $value = $parts[$key] ?? null;
+
+        return is_string($value) ? strtolower($value) : '';
     }
 }

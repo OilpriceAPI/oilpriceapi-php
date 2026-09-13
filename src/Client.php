@@ -214,7 +214,9 @@ final class Client
      */
     private function dataOrFail(array $body, string $path): array
     {
-        if (($body['status'] ?? null) !== 'success' || !is_array($body['data'] ?? null)) {
+        $data = $body['data'] ?? null;
+
+        if (($body['status'] ?? null) !== 'success' || !is_array($data)) {
             throw new ApiException(
                 sprintf('Unexpected response shape from %s.', $path),
                 200,
@@ -222,7 +224,7 @@ final class Client
             );
         }
 
-        return $body['data'];
+        return self::stringKeyed($data);
     }
 
     /**
@@ -262,13 +264,36 @@ final class Client
     {
         if (is_array($row)) {
             try {
-                return Price::fromArray($row);
+                return Price::fromArray(self::stringKeyed($row));
             } catch (ApiException $e) {
                 throw new ApiException($this->malformedRowMessage($path, $e->getMessage()), 200, $body);
             }
         }
 
         throw new ApiException($this->malformedRowMessage($path, 'Price row is not an object.'), 200, $body);
+    }
+
+    /**
+     * Restore JSON object keys to strings.
+     *
+     * json_decode(..., true) turns a numeric JSON key such as "2026" into an
+     * int array key, so a decoded object is array<array-key, mixed> rather
+     * than array<string, mixed>. Casting the keys back is not a cosmetic
+     * narrowing: it is the inverse of that decode step, and it makes the
+     * array<string, mixed> this SDK declares everywhere actually true.
+     *
+     * @param array<array-key, mixed> $decoded
+     *
+     * @return array<string, mixed>
+     */
+    private static function stringKeyed(array $decoded): array
+    {
+        $keyed = [];
+        foreach ($decoded as $key => $value) {
+            $keyed[(string) $key] = $value;
+        }
+
+        return $keyed;
     }
 
     private function malformedRowMessage(string $path, string $detail): string
@@ -311,12 +336,13 @@ final class Client
             'Accept' => 'application/json',
             'User-Agent' => 'oilpriceapi-php/' . self::VERSION,
         ];
-        if (!$isDemo && $this->apiKey !== null) {
+        if (!$isDemo) {
+            // Not demo means the guard above already proved the key is present.
             $headers['Authorization'] = 'Token ' . $this->apiKey;
         }
 
+        // max() guarantees at least one iteration, so $response is always assigned.
         $attempts = max(1, $this->maxRetries + 1);
-        $response = null;
 
         for ($attempt = 0; $attempt < $attempts; $attempt++) {
             $response = $this->transport->request('GET', $url, $headers, $this->timeout);
@@ -336,8 +362,6 @@ final class Client
 
             ($this->sleeper)($delay);
         }
-
-        assert($response instanceof HttpResponse);
 
         return $this->handleResponse($response, $path);
     }
@@ -411,14 +435,28 @@ final class Client
      */
     private static function originOf(array $parts): string
     {
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $scheme = self::lowerPart($parts, 'scheme');
+        $host = self::lowerPart($parts, 'host');
         $defaultPorts = ['http' => 80, 'https' => 443];
         $port = $parts['port'] ?? ($defaultPorts[$scheme] ?? null);
         // Any userinfo at all is a mismatch: the configured base URL carries none.
         $userInfo = isset($parts['user']) || isset($parts['pass']) ? 'userinfo@' : '';
 
-        return $scheme . '://' . $userInfo . $host . ':' . ($port === null ? '' : (string) $port);
+        return $scheme . '://' . $userInfo . $host . ':' . (is_int($port) ? (string) $port : '');
+    }
+
+    /**
+     * A parse_url() part, lowercased. A non-string part is an origin we cannot
+     * name, which must not compare equal to one we can - hence '' rather than
+     * a cast that would turn null, 0 or false into something plausible.
+     *
+     * @param array<string, mixed> $parts
+     */
+    private static function lowerPart(array $parts, string $key): string
+    {
+        $value = $parts[$key] ?? null;
+
+        return is_string($value) ? strtolower($value) : '';
     }
 
     private function offOriginPath(string $path, string $reason): ApiException
@@ -576,8 +614,9 @@ final class Client
     private function errorMessage(array $body, string $fallback): string
     {
         // Production error envelope: {"error": {"code": ..., "message": ...}}
-        if (isset($body['error']['message']) && is_string($body['error']['message']) && $body['error']['message'] !== '') {
-            return $body['error']['message'];
+        $error = $body['error'] ?? null;
+        if (is_array($error) && isset($error['message']) && is_string($error['message']) && $error['message'] !== '') {
+            return $error['message'];
         }
 
         foreach (['message', 'error', 'detail'] as $key) {
@@ -586,8 +625,9 @@ final class Client
             }
         }
 
-        if (isset($body['data']['message']) && is_string($body['data']['message'])) {
-            return $body['data']['message'];
+        $data = $body['data'] ?? null;
+        if (is_array($data) && isset($data['message']) && is_string($data['message'])) {
+            return $data['message'];
         }
 
         return $fallback;

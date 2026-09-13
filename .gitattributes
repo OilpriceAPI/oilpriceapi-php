@@ -3,6 +3,7 @@
 /.gitignore export-ignore
 /.phpunit.result.cache export-ignore
 /composer.lock export-ignore
+/phpstan.neon export-ignore
 /phpunit.xml.dist export-ignore
 /scripts export-ignore
 /tests export-ignore
