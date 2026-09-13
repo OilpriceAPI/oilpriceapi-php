@@ -79,7 +79,7 @@ final class VersioningTest extends TestCase
      */
     public function testChangelogDocumentsTheBreakingChange(): void
     {
-        $entry = self::firstChangelogEntry();
+        $entry = self::breakingMajorEntry();
 
         $this->assertMatchesRegularExpression(
             '/###\s+Breaking changes/i',
@@ -189,9 +189,9 @@ final class VersioningTest extends TestCase
      */
     private static function breakingChangesSection(): string
     {
-        $entry = self::firstChangelogEntry();
+        $entry = self::breakingMajorEntry();
         $start = strpos($entry, '### Breaking changes');
-        self::assertIsInt($start, 'The topmost entry has no "### Breaking changes" section.');
+        self::assertIsInt($start, 'The breaking major entry has no "### Breaking changes" section.');
 
         $rest = substr($entry, $start + strlen('### Breaking changes'));
         $next = strpos($rest, '###');
@@ -210,6 +210,23 @@ final class VersioningTest extends TestCase
         self::assertNotEmpty($matches, 'CHANGELOG.md has no "## " heading.');
 
         return trim($matches[1]);
+    }
+
+    /**
+     * The entry for the major that introduced the break (3.0.0), wherever it
+     * sits. Reading the topmost entry instead made every later patch or minor
+     * release fail these tests unless it re-listed 3.0.0's breaking changes,
+     * which would tell a reader upgrading from 3.0.0 that something new broke.
+     */
+    private static function breakingMajorEntry(): string
+    {
+        $version = (self::LAST_BC_COMPATIBLE_MAJOR + 1) . '.0.0';
+        foreach (preg_split('/^## /m', self::changelog()) ?: [] as $entry) {
+            if (str_starts_with($entry, $version . ' ') || str_starts_with($entry, '[' . $version . ']')) {
+                return $entry;
+            }
+        }
+        self::fail(sprintf('CHANGELOG.md has no "## %s" entry.', $version));
     }
 
     private static function firstChangelogEntry(): string

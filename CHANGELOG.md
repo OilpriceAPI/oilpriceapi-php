@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.0.1 - 2026-09-13
+
+### Fixed
+
+- Keyless demo mode now matches the demo endpoint on a path-segment boundary
+  (#23). It used a raw prefix match, `str_starts_with($path, '/v1/demo')`, so
+  any path whose characters merely began that way was treated as a demo call
+  and sent without the `Authorization` header.
+
+### Internal
+
+- PHPStan level 9 now runs in CI against `src/`, with the 14 errors it reported
+  fixed and no baseline (#24).
+
 ## 3.0.0 - 2026-09-13
 
 ### Breaking changes
