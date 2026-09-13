@@ -15,6 +15,17 @@
 
 ### Fixed
 
+- Reject fabricated observation timestamps. `Price::fromArray()` parsed the
+  `created_at`/`updated_at` field without ever consulting
+  `DateTimeImmutable::getLastErrors()`, so PHP silently repaired impossible
+  values into plausible dates - `2026-13-45T99:99:99Z` became
+  `2027-02-18T04:40:39Z` - and the tolerant constructor fallback accepted
+  relative expressions such as `now`, `next friday` and `+1 week`. Timestamps
+  are now matched against an explicit list of absolute formats and accepted
+  only on a parse that reports zero warnings and zero errors; anything else
+  raises `ApiException`. Naive timestamps are read as UTC rather than as the
+  host's local timezone, and leap seconds are rejected rather than rolled
+  silently into the next minute.
 - Reject malformed price rows instead of reporting them as `$0.00`. A row
   without a usable code or a numeric price, an unparseable timestamp, and a
   missing or non-array `prices` field now raise `ApiException` across
