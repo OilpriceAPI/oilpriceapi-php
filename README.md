@@ -13,6 +13,12 @@ futures, and related energy data from [OilPriceAPI](https://www.oilpriceapi.com)
 [API explorer](https://api.oilpriceapi.com/swagger) |
 [Pricing](https://www.oilpriceapi.com/pricing?utm_source=php-sdk-limit)
 
+## Install
+
+```bash
+composer require oilpriceapi/oilpriceapi
+```
+
 ## Requirements
 
 - PHP 8.1 or newer
@@ -22,12 +28,6 @@ futures, and related energy data from [OilPriceAPI](https://www.oilpriceapi.com)
 - Environment variable used by the executable example: `OILPRICEAPI_KEY`
 
 The package has no third-party runtime dependency.
-
-## Install
-
-```bash
-composer require oilpriceapi/oilpriceapi
-```
 
 ## First Request
 
