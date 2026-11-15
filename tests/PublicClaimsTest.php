@@ -157,10 +157,10 @@ final class PublicClaimsTest extends TestCase
             'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
             $workflow,
         );
-        self::assertStringContainsString(
-            'shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240',
-            $workflow,
-        );
+        // Every setup-php use must be pinned to a full commit SHA. Assert the
+        // pin shape rather than one SHA so Dependabot bumps do not fail CI.
+        self::assertMatchesRegularExpression('~shivammathur/setup-php@[0-9a-f]{40}\b~', $workflow);
+        self::assertDoesNotMatchRegularExpression('~shivammathur/setup-php@(?![0-9a-f]{40}\b)~', $workflow);
         self::assertTrue($this->checkoutStepsAreHardened($workflow));
         self::assertStringContainsString(
             "live:\n    name: Live canonical first request\n"
